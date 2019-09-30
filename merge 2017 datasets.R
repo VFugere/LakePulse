@@ -121,5 +121,5 @@ zoo.biomass$Lake_ID[!(zoo.biomass$Lake_ID %in% phyto.biov$Lake_ID)]
 
 merged.data <- inner_join(data, bacterio, by = 'Lake_ID') #we loose 4 additional lakes
 
-rm(data,bad.zoo.samples)
+rm(data,bad.zoo.samples,i)
 save.image('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/2017data.RData')
