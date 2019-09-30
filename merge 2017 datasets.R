@@ -7,18 +7,39 @@ library(readxl)
 
 env.data <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/env_all_sites_May2018.csv', sep = ';', stringsAsFactors = F)
 
-# #MP's zoo trait database
-# zooT <- read.csv('~/Desktop/zooTtraits.csv', sep=';', stringsAsFactors = F)
-# zooT$Body.length <- str_replace(zooT$Body.length, ',','.')
-# zooT$Body.length <- as.numeric(zooT$Body.length)
-# 
-# zooT <- zooT %>%
-#   filter(Habitat == 'Freshwater') %>%
-#   select(Genus:Body.length) %>%
-#   rename(length = Body.length) %>%
-#   select(-Ref.tg, -Habitat)
-# 
-# zooT$sp <- paste(zooT$Genus,zooT$Species,sep=' ')
+#MP's zoo trait database
+
+comma2dot <- function(x){as.numeric(str_replace(x,',','.'))}
+return1stval <- function(x){x[1]}
+
+zooT <- read.csv('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/traits/zootraits.csv', sep=';', stringsAsFactors = F)
+zooT <- zooT %>%
+  mutate_at(c('Body.length','Min.bl','Max.bl','Dry.mass','Min.dm','Max.dm'), comma2dot) %>% 
+  filter(Habitat == 'Freshwater') %>%
+  select(-Ref.tg, -Ref.bl, -Habitat, -Ref.dm) %>%
+  select(Genus:Max.dm)
+                  
+zooT$taxon <- paste(zooT$Genus,zooT$Species,sep=' ')
+colnames(zooT)[c(3,6:11)] <- c('rep','length','min.length','max.length','dry.mass','min.dry.mass','max.dry.mass')
+
+zooT <- select(zooT, taxon, everything())
+
+zooT <- zooT %>% group_by(taxon) %>% 
+  summarize(genus = return1stval(Genus),
+            species = return1stval(Species),
+            class = return1stval(Group),
+            TL = return1stval(Trophic.group),
+            length = mean(length, na.rm=T),
+            max.length = max(max.length, na.rm=T),
+            min.length = min(min.length, na.rm=T),
+            dry.mass = mean(dry.mass, na.rm=T),
+            max.dry.mass = max(max.dry.mass, na.rm=T),
+            min.dry.mass = min(min.dry.mass, na.rm=T)) %>%
+  as.data.frame()
+
+for(i in 6:11){
+  zooT[!(is.finite(zooT[,i])),i] <- NA
+}
 
 #zoo Cindy
 
@@ -27,18 +48,30 @@ bad.zoo.samples <- c('07-057','17-050')#,'08-205','07-029') # remove these two i
 zoo.abund <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2017/all raw data 2017.xlsx', sheet='abundances') %>%
   filter(!(ID_lakepulse %in% bad.zoo.samples)) %>%
   rename(Lake_ID = ID_lakepulse, abund = '#individuals counted') %>%
-  mutate(species = paste(genus,species)) %>%
-  select(Lake_ID, species, abund) %>%
-  group_by(Lake_ID, species) %>% 
-  summarize(abund = sum(abund)) %>%
+  select(Lake_ID, name, abund)
+
+zoo.abund$name <- str_replace(zoo.abund$name, '  ', ' ')
+zoo.abund$name <- str_replace(zoo.abund$name, 'spp', 'sp')
+
+zoo.abund <- zoo.abund %>% 
+  group_by(Lake_ID,name) %>% 
+  summarize(abund = sum(abund, na.rm=T)) %>%
   ungroup %>%
-  spread(species, abund)
+  spread(name,abund)
 
 zoo.biomass <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2017/all raw data 2017.xlsx', sheet='clean biomass') %>%
   filter(!(ID_lakepulse %in% bad.zoo.samples)) %>%
   rename(Lake_ID = ID_lakepulse, biomass = 'species biomass (µg d.w./L)') %>%
-  select(Lake_ID, name, biomass) %>%
-  spread(name, biomass) #ug DM L^-1, copepodite not grouped with adults
+  select(Lake_ID, name, biomass)
+
+zoo.biomass$name <- str_replace(zoo.biomass$name, '  ', ' ')
+zoo.biomass$name <- str_replace(zoo.biomass$name, 'spp', 'sp')
+
+zoo.biomass <- spread(zoo.biomass,name, biomass) #ug DM L^-1, copepodite not grouped with adults
+
+#how many species in MP's database?
+
+colnames(zoo.biomass)[2:86][(!(colnames(zoo.biomass)[2:86] %in% zooT$taxon))]
 
 #phyto Bruno
 
@@ -89,4 +122,4 @@ zoo.biomass$Lake_ID[!(zoo.biomass$Lake_ID %in% phyto.biov$Lake_ID)]
 merged.data <- inner_join(data, bacterio, by = 'Lake_ID') #we loose 4 additional lakes
 
 rm(data,bad.zoo.samples)
-save.image('~/Desktop/2017data.RData')
+save.image('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/2017data.RData')
