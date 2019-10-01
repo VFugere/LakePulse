@@ -45,6 +45,11 @@ for(ecozone in ecozones){
   com.sub <- com[lines,]
   meta.sub <- meta[lines,]
   
+  # com.sub <- decostand(com.sub,method='total')
+  # com.sub <- decostand(com.sub,method='hellinger')
+  # com.sub <- log1p(com.sub)
+  # com.sub <- sqrt(com.sub)
+  # 
   dm <- vegdist(com.sub,method = 'bray')
   
   #testing whether HI differ in centroid location and mean dissimilarity
@@ -67,53 +72,11 @@ for(ecozone in ecozones){
   com.sub <- com[lines,]
   meta.sub <- meta[lines,]
   
-  dm <- vegdist(com.sub,method = 'bray')
-  
-  #testing whether area differ in centroid location and mean dissimilarity
-  cc <- adonis(dm~meta.sub$area)
-  p.cc <- round(cc$aov.tab$`Pr(>F)`,2)[1]
-  
-  bd <- anova(betadisper(d=dm, group=meta.sub$area, type='centroid'))
-  p.bd <- round(bd$`Pr(>F)`[1],2)
-  
-  plot(betadisper(d=dm, group=meta.sub$area, type='centroid'),hull=T)
-  legend('topleft',bty='n',legend=c(p.cc,p.bd))
-  
-}
-
-
-# with standardized data, to remove abundance differences among sites
-
-com <- decostand(com, method = 'total', MARGIN = 1)
-
-for(ecozone in ecozones){
-  
-  lines <- which(meta$ecozone == ecozone & meta$area != 'large')
-  com.sub <- com[lines,]
-  meta.sub <- meta[lines,]
-  
-  dm <- vegdist(com.sub,method = 'bray')
-  
-  #testing whether HI differ in centroid location and mean dissimilarity
-  cc <- adonis(dm~meta.sub$HI)
-  p.cc <- round(cc$aov.tab$`Pr(>F)`,2)[1]
-  
-  bd <- anova(betadisper(d=dm, group=meta.sub$HI, type='centroid'))
-  p.bd <- round(bd$`Pr(>F)`[1],2)
-  
-  plot(betadisper(d=dm, group=meta.sub$HI, type='centroid'),hull=T)
-  legend('topleft',bty='n',legend=c(p.cc,p.bd))
-  #TukeyHSD(betadisper(d=dm, group=meta.sub$HI, type='centroid'))
-  
-}
-
-#effect of area
-for(ecozone in ecozones){
-  
-  lines <- which(meta$ecozone == ecozone & meta$HI != 'high')
-  com.sub <- com[lines,]
-  meta.sub <- meta[lines,]
-  
+  # com.sub <- decostand(com.sub,method='total')
+  # com.sub <- decostand(com.sub,method='hellinger')
+  # com.sub <- log1p(com.sub)
+  # com.sub <- sqrt(com.sub)
+  # 
   dm <- vegdist(com.sub,method = 'bray')
   
   #testing whether area differ in centroid location and mean dissimilarity
@@ -130,7 +93,8 @@ for(ecozone in ecozones){
 
 #incidence data
 
-com[com > 0] <- 1
+com.i <- com
+com.i[com.i > 0] <- 1
 
 # dm <- vegdist(log1p(com),method = 'jaccard')
 # #adonis(dm~meta$HI*meta$ecozone*meta$area)
@@ -141,9 +105,12 @@ com[com > 0] <- 1
 for(ecozone in ecozones){
   
   lines <- which(meta$ecozone == ecozone & meta$area != 'large')
-  com.sub <- com[lines,]
+  com.sub <- com.i[lines,]
   meta.sub <- meta[lines,]
   
+  # com.sub <- decostand(com.sub,method='total')
+  # com.sub <- decostand(com.sub,method='hellinger')
+  # 
   dm <- vegdist(com.sub,method = 'jaccard')
   
   #testing whether HI differ in centroid location and mean dissimilarity
@@ -162,10 +129,13 @@ for(ecozone in ecozones){
 for(ecozone in ecozones){
   
   lines <- which(meta$ecozone == ecozone & meta$HI != 'high')
-  com.sub <- com[lines,]
+  com.sub <- com.i[lines,]
   meta.sub <- meta[lines,]
   
-  dm <- vegdist(com.sub,method = 'jaccard')
+  # com.sub <- decostand(com.sub,method='total')
+  # com.sub <- decostand(com.sub,method='hellinger')
+  
+  dm <- vegdist(com.sub,method = 'bray', binary = T)
   
   #testing whether area differ in centroid location and mean dissimilarity
   cc <- adonis(dm~meta.sub$area)
