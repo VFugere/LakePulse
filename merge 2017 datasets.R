@@ -83,6 +83,7 @@ phyto.biov <- phyto.biov %>% rename(Lake_ID = lake_id, bv = BV.mm3L.corrected, n
   summarize(bv = sum(bv, na.rm=T)) %>%
   ungroup %>%
   spread(name, bv) %>%
+  filter(Lake_ID != '06-174') %>% #empty lake! biovolume of 0
   as.data.frame
 
 phyto.biov[is.na(phyto.biov)] <- 0
