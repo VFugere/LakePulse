@@ -26,6 +26,9 @@ meta <- left_join(meta, trt, by = 'Lake_ID')
 meta$HI_Ez <- paste(meta$ecozone,meta$HI,sep='_')
 meta <- mutate_at(meta, vars(HI:HI_Ez), as.factor)
 
+meta$HI <- factor(meta$HI, levels=c('low','moderate','high'))
+meta$area <- factor(meta$area, levels=c('small','medium','large'))
+
 com <- com[,2:ncol(com)] %>% as.matrix
 com[is.na(com)] <- 0
 
@@ -48,7 +51,7 @@ meta.sub <- meta[lines,]
 # com.sub <- decostand(com.sub,method='hellinger')
 # com.sub <- log1p(com.sub)
 # com.sub <- sqrt(com.sub)
-com.sub <- wisconsin(com.sub)
+# com.sub <- wisconsin(com.sub)
 dm <- vegdist(com.sub,method = 'bray')
 cc <- adonis(dm~meta.sub$HI)
 p.cc <- round(cc$aov.tab$`Pr(>F)`,2)[1]
@@ -69,7 +72,7 @@ meta.sub <- meta[lines,]
 # com.sub <- decostand(com.sub,method='hellinger')
 # com.sub <- log1p(com.sub)
 # com.sub <- sqrt(com.sub)
-com.sub <- wisconsin(com.sub)
+# com.sub <- wisconsin(com.sub)
 dm <- vegdist(com.sub,method = 'bray')
 cc <- adonis(dm~meta.sub$area)
 p.cc <- round(cc$aov.tab$`Pr(>F)`,2)[1]
