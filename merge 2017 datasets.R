@@ -97,11 +97,11 @@ bacterio <- read.table('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/bact
 colnames(bacterio)[1] <- 'Lake_ID'
 
 # Mario M. recommended deleting global singleton but not global doubleton or more. I.e. no need for rarefaction
-sum(colSums(bacterio[,2:13435]) == 0)
-sum(is.na(colSums(bacterio[,2:13435])))
+sum(colSums(bacterio[,2:ncol(bacterio)]) == 0)
+sum(is.na(colSums(bacterio[,2:ncol(bacterio)])))
 #no NA, no empty columns. 
-sum(colSums(bacterio[,2:13435]) == 1)
-sum(colSums(bacterio[,2:13435]) == 2)
+sum(colSums(bacterio[,2:ncol(bacterio)]) == 1)
+sum(colSums(bacterio[,2:ncol(bacterio)]) == 2)
 #5 global singletons, 557 global doubletons
 
 #removing two sites with very poor sequencing depth (< 1100 reads, while all other sites are > 10K)
@@ -109,7 +109,7 @@ to.rm <- which(rowSums(bacterio[,2:ncol(bacterio)]) < 1500)
 bacterio <- bacterio[-(to.rm),]
 
 #removing global single and doubletons
-to.rm <- as.numeric(which(colSums(bacterio[,2:13435]) == 1 | colSums(bacterio[,2:13435]) == 2))
+to.rm <- as.numeric(which(colSums(bacterio[,2:ncol(bacterio)]) < 3))+1
 bacterio <- bacterio[,-(to.rm)]
 
 # master dataframe
