@@ -38,6 +38,10 @@ com[is.na(com)] <- 0
 # #area, ecozone, HI have a signigicant impact on composition.
 # #significant HI by ecozone interaction
 
+# #for bacteria, say I only want to use abundant ASVs. Does not change anything.
+# to.rm <- as.numeric(which(colSums(com) < 1000))
+# com <- com[,-(to.rm)]
+
 ##### including all sites together ####
 
 par(mfrow=c(2,2))
