@@ -104,6 +104,14 @@ sum(colSums(bacterio[,2:13435]) == 1)
 sum(colSums(bacterio[,2:13435]) == 2)
 #5 global singletons, 557 global doubletons
 
+#removing global single and doubletons
+to.rm <- as.numeric(which(colSums(bacterio[,2:13435]) == 1 | colSums(bacterio[,2:13435]) == 2))
+bacterio <- bacterio[,-(to.rm)]
+
+#removing two sites with very poor sequencing depth (< 1100 reads, while all other sites are > 10K)
+to.rm <- which(rowSums(bacterio[,2:ncol(bacterio)]) < 1500)
+bacterio <- bacterio[-(to.rm),]
+
 # master dataframe
 
 #check that all names are ok and found in metadata file
