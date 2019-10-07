@@ -3,10 +3,18 @@ rm(list=ls())
 library(tidyverse)
 library(readxl)
 
-#env data
+#basic data data
 
-env.data <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/env_all_sites_May2018.csv', sep = ';', stringsAsFactors = F)
+d2017 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2017_basic_info.csv', sep = ';', stringsAsFactors = F)
+d2018 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2018_basic_info.csv', sep = ';', stringsAsFactors = F)
+d2019 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2019_basic_info.csv', sep = ';', stringsAsFactors = F)
 
+basic.data <- bind_rows(d2017,d2018) %>%
+  bind_rows(d2019) %>%
+  rename(Lake_ID = lakepulse_id, area = size_km2, HI = hi_index)
+
+rm(d2017,d2018,d2019)
+  
 #MP's zoo trait database
 
 comma2dot <- function(x){as.numeric(str_replace(x,',','.'))}
@@ -59,6 +67,8 @@ zoo.abund <- zoo.abund %>%
   ungroup %>%
   spread(name,abund)
 
+#
+
 zoo.biomass <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2017/all raw data 2017.xlsx', sheet='clean biomass') %>%
   filter(!(ID_lakepulse %in% bad.zoo.samples)) %>%
   rename(Lake_ID = ID_lakepulse, biomass = 'species biomass (µg d.w./L)') %>%
@@ -69,15 +79,23 @@ zoo.biomass$name <- str_replace(zoo.biomass$name, 'spp', 'sp')
 
 zoo.biomass <- spread(zoo.biomass,name, biomass) #ug DM L^-1, copepodite not grouped with adults
 
-#how many species in MP's database?
+#
 
-colnames(zoo.biomass)[2:86][(!(colnames(zoo.biomass)[2:86] %in% zooT$taxon))]
+zoo.biomass.grouped <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2017/ALLfinal_grouping2017.csv', stringsAsFactors = F) %>%
+  filter(!(Lake_ID %in% bad.zoo.samples)) %>%
+  mutate_at(vars(Ergasilus.spp.:Simocephalus..spp.), as.numeric)
+
+colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), '\\.', ' ')
+colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), '\\.spp\\.', 'sp\\.')
+colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), 'spp\\.', 'sp\\.')
+colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), 'Daphnia galeata\\.mendotae', 'Daphnia galeata mendotae')
+colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), ' \\.', ' ')
 
 #phyto Bruno
 
-phyto.biov <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/Phytoplankton LakePulse 2017_Bruno.xlsx', sheet='Longform')
+phyto <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/Phytoplankton LakePulse 2017_Bruno.xlsx', sheet='Longform')
 
-phyto.biov <- phyto.biov %>% rename(Lake_ID = lake_id, bv = BV.mm3L.corrected, name = totalbinomial) %>%
+phyto <- phyto %>% rename(Lake_ID = lake_id, bv = BV.mm3L.corrected, name = totalbinomial) %>%
   select(Lake_ID, name, bv) %>%
   group_by(Lake_ID, name) %>% 
   summarize(bv = sum(bv, na.rm=T)) %>%
@@ -86,10 +104,14 @@ phyto.biov <- phyto.biov %>% rename(Lake_ID = lake_id, bv = BV.mm3L.corrected, n
   filter(Lake_ID != '06-174') %>% #empty lake! biovolume of 0
   as.data.frame
 
-phyto.biov[is.na(phyto.biov)] <- 0
+phyto[is.na(phyto)] <- 0
 
-colnames(phyto.biov)
-str(phyto.biov)
+# colnames(phyto) <- str_replace(colnames(phyto), '\\(', '')
+# colnames(phyto) <- str_replace(colnames(phyto), '\\)', '')
+
+# phyto traits and taxonomy
+
+phytoT <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/Phytoplankton LakePulse 2017_Bruno.xlsx', sheet='Unique taxa entries')
 
 # ASV data Susanne
 
@@ -112,23 +134,18 @@ bacterio <- bacterio[-(to.rm),]
 to.rm <- as.numeric(which(colSums(bacterio[,2:ncol(bacterio)]) < 3))+1
 bacterio <- bacterio[,-(to.rm)]
 
-# master dataframe
+#bacterio taxonomy
+
+bacterioT <- read.table('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/bacterioplankton2017/taxa_ASV.txt', header=T, stringsAsFactors = F)
 
 #check that all names are ok and found in metadata file
-zoo.biomass$Lake_ID[!(zoo.biomass$Lake_ID %in% env.data$Lake_ID)]
-phyto.biov$Lake_ID[!(phyto.biov$Lake_ID %in% env.data$Lake_ID)]
-bacterio$Lake_ID[!(bacterio$Lake_ID %in% env.data$Lake_ID)]
+zoo.abund$Lake_ID[!(zoo.abund$Lake_ID %in% basic.data$Lake_ID)]
+zoo.biomass$Lake_ID[!(zoo.biomass$Lake_ID %in% basic.data$Lake_ID)]
+zoo.biomass.grouped$Lake_ID[!(zoo.biomass.grouped$Lake_ID %in% basic.data$Lake_ID)]
+phyto$Lake_ID[!(phyto$Lake_ID %in% basic.data$Lake_ID)]
+bacterio$Lake_ID[!(bacterio$Lake_ID %in% basic.data$Lake_ID)]
 
-data <- inner_join(env.data, zoo.biomass, by = 'Lake_ID')
-data <- inner_join(data, phyto.biov, by = 'Lake_ID') #we loose 13 lakes
+# saving
 
-# in phyto but not zoo database
-phyto.biov$Lake_ID[!(phyto.biov$Lake_ID %in% zoo.biomass$Lake_ID)] #indeed, 13 lakes
-
-#in zoo database but not phyto database
-zoo.biomass$Lake_ID[!(zoo.biomass$Lake_ID %in% phyto.biov$Lake_ID)]
-
-merged.data <- inner_join(data, bacterio, by = 'Lake_ID') #we loose 4 additional lakes
-
-rm(data,bad.zoo.samples,i)
+rm(bad.zoo.samples,i,to.rm,comma2dot,return1stval)
 save.image('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/2017data.RData')
