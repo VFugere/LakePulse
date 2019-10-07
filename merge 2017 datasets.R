@@ -6,8 +6,11 @@ library(readxl)
 #basic data data
 
 d2017 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2017_basic_info.csv', sep = ';', stringsAsFactors = F)
+d2017$year <- 2017
 d2018 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2018_basic_info.csv', sep = ';', stringsAsFactors = F)
+d2018$year <- 2018
 d2019 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2019_basic_info.csv', sep = ';', stringsAsFactors = F)
+d2019$year <- 2019
 
 basic.data <- bind_rows(d2017,d2018) %>%
   bind_rows(d2019) %>%
