@@ -6,6 +6,7 @@ library(vegan)
 library(RColorBrewer)
 library(adespatial)
 library(devtools)
+library(sp)
 
 #functions
 make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y)))))
@@ -207,16 +208,120 @@ dev.off()
 
 ###### Turnover along continuous gradient #####
 
-library(sp)
+z.trt <- zoo.biomass.grouped %>% select(Lake_ID) %>% left_join(trt, by='Lake_ID')
+p.trt <- phyto %>% select(Lake_ID) %>% left_join(trt, by='Lake_ID')
+b.trt <- bacterio %>% select(Lake_ID) %>% left_join(trt, by='Lake_ID')
+
+pdf('~/Desktop/distance_decay_Jaccard.pdf', height = 6,width=5,pointsize = 8)
+par(mfrow=c(3,2),cex=1,mar=c(4,4,1,1),oma=c(0,0,0,0))
+
+com <- bacterio
+meta <- b.trt
+com <- com[,2:ncol(com)] %>% as.matrix
+dist.hi <- as.numeric(dist(meta$hi_cont))
+dist.spatial <- spDists(as.matrix(meta[,c('long','lat')]),longlat = T)
+dist.spatial <- as.numeric(dist.spatial[lower.tri(dist.spatial, diag=F)])
+sim.cc <- 1-(as.numeric(vegdist(com,method='jaccard',binary=T)))
+plot(log1p(sim.cc)~dist.hi,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='HI difference')
+mod1 <- lm(log1p(sim.cc)~dist.hi)
+legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod1)$r.squared,2))))
+abline(mod1,lwd=3,col='navy blue')
+legend('topleft',bty='n',legend=expression(italic(bacterio)))
+plot(log1p(sim.cc)~dist.spatial,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='spatial distance (km)')
+mod2 <- lm(log1p(sim.cc)~dist.spatial)
+legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod2)$r.squared,2))))
+abline(mod2,lwd=3,col='dark orange')
+
+com <- phyto
+meta <- p.trt
+com <- com[,2:ncol(com)] %>% as.matrix
+dist.hi <- as.numeric(dist(meta$hi_cont))
+dist.spatial <- spDists(as.matrix(meta[,c('long','lat')]),longlat = T)
+dist.spatial <- as.numeric(dist.spatial[lower.tri(dist.spatial, diag=F)])
+sim.cc <- 1-(as.numeric(vegdist(com,method='jaccard',binary=T)))
+plot(log1p(sim.cc)~dist.hi,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='HI difference')
+mod1 <- lm(log1p(sim.cc)~dist.hi)
+legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod1)$r.squared,2))))
+abline(mod1,lwd=3,col='navy blue')
+legend('topleft',bty='n',legend=expression(italic(phyto)))
+plot(log1p(sim.cc)~dist.spatial,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='spatial distance (km)')
+mod2 <- lm(log1p(sim.cc)~dist.spatial)
+legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod2)$r.squared,2))))
+abline(mod2,lwd=3,col='dark orange')
 
 com <- zoo.biomass.grouped
-
+meta <- z.trt
 com <- com[,2:ncol(com)] %>% as.matrix
-
-dist.hi <- as.numeric(dist(z.trt$hi_cont))
-dist.spatial <- spDists(as.matrix(z.trt[,c('long','lat')]),longlat = T)
-dist.spatial <- as.numeric(lower.tri(dist.spatial, diag=F))
+dist.hi <- as.numeric(dist(meta$hi_cont))
+dist.spatial <- spDists(as.matrix(meta[,c('long','lat')]),longlat = T)
+dist.spatial <- as.numeric(dist.spatial[lower.tri(dist.spatial, diag=F)])
 sim.cc <- 1-(as.numeric(vegdist(com,method='jaccard',binary=T)))
+plot(log1p(sim.cc)~dist.hi,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='HI difference')
+mod1 <- lm(log1p(sim.cc)~dist.hi)
+legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod1)$r.squared,2))))
+abline(mod1,lwd=3,col='navy blue')
+legend('topleft',bty='n',legend=expression(italic(zoo)))
+plot(log1p(sim.cc)~dist.spatial,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='spatial distance (km)')
+mod2 <- lm(log1p(sim.cc)~dist.spatial)
+legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod2)$r.squared,2))))
+abline(mod2,lwd=3,col='dark orange')
 
-plot(sim.cc~dist.hi)
-plot(sim.cc~dist.spatial)
+dev.off()
+
+##
+
+pdf('~/Desktop/distance_decay_Bray_logged.pdf', height = 6,width=5,pointsize = 8)
+par(mfrow=c(3,2),cex=1,mar=c(4,4,1,1),oma=c(0,0,0,0))
+
+com <- bacterio
+meta <- b.trt
+com <- com[,2:ncol(com)] %>% as.matrix
+dist.hi <- as.numeric(dist(meta$hi_cont))
+dist.spatial <- spDists(as.matrix(meta[,c('long','lat')]),longlat = T)
+dist.spatial <- as.numeric(dist.spatial[lower.tri(dist.spatial, diag=F)])
+sim.cc <- 1-(as.numeric(vegdist(log1p(com),method='bray',binary=F)))
+plot(log1p(sim.cc)~dist.hi,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='HI difference')
+mod1 <- lm(log1p(sim.cc)~dist.hi)
+legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod1)$r.squared,2))))
+abline(mod1,lwd=3,col='navy blue')
+legend('topleft',bty='n',legend=expression(italic(bacterio)))
+plot(log1p(sim.cc)~dist.spatial,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='spatial distance (km)')
+mod2 <- lm(log1p(sim.cc)~dist.spatial)
+legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod2)$r.squared,2))))
+abline(mod2,lwd=3,col='dark orange')
+
+com <- phyto
+meta <- p.trt
+com <- com[,2:ncol(com)] %>% as.matrix
+dist.hi <- as.numeric(dist(meta$hi_cont))
+dist.spatial <- spDists(as.matrix(meta[,c('long','lat')]),longlat = T)
+dist.spatial <- as.numeric(dist.spatial[lower.tri(dist.spatial, diag=F)])
+sim.cc <- 1-(as.numeric(vegdist(log1p(com),method='bray',binary=F)))
+plot(log1p(sim.cc)~dist.hi,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='HI difference')
+mod1 <- lm(log1p(sim.cc)~dist.hi)
+legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod1)$r.squared,2))))
+abline(mod1,lwd=3,col='navy blue')
+legend('topleft',bty='n',legend=expression(italic(phyto)))
+plot(log1p(sim.cc)~dist.spatial,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='spatial distance (km)')
+mod2 <- lm(log1p(sim.cc)~dist.spatial)
+legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod2)$r.squared,2))))
+abline(mod2,lwd=3,col='dark orange')
+
+com <- zoo.biomass.grouped
+meta <- z.trt
+com <- com[,2:ncol(com)] %>% as.matrix
+dist.hi <- as.numeric(dist(meta$hi_cont))
+dist.spatial <- spDists(as.matrix(meta[,c('long','lat')]),longlat = T)
+dist.spatial <- as.numeric(dist.spatial[lower.tri(dist.spatial, diag=F)])
+sim.cc <- 1-(as.numeric(vegdist(log1p(com),method='bray',binary=F)))
+plot(log1p(sim.cc)~dist.hi,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='HI difference')
+mod1 <- lm(log1p(sim.cc)~dist.hi)
+legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod1)$r.squared,2))))
+abline(mod1,lwd=3,col='navy blue')
+legend('topleft',bty='n',legend=expression(italic(zoo)))
+plot(log1p(sim.cc)~dist.spatial,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='spatial distance (km)')
+mod2 <- lm(log1p(sim.cc)~dist.spatial)
+legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod2)$r.squared,2))))
+abline(mod2,lwd=3,col='dark orange')
+
+dev.off()
