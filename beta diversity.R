@@ -325,3 +325,73 @@ legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod2)$r.squared,2
 abline(mod2,lwd=3,col='dark orange')
 
 dev.off()
+
+
+#### by ecozone
+
+ecozones <- unique(z.trt$ecozone)
+
+pdf('~/Desktop/distance_decay_Jaccard_ecozones.pdf', height = 6,width=5,pointsize = 8,onefile=T)
+par(mfrow=c(3,2),cex=1,mar=c(4,4,1,1),oma=c(0,0,3,0))
+
+for(ecozone in ecozones){
+  
+  lines <- which(b.trt$ecozone == ecozone)
+  com <- bacterio[lines,]
+  meta <- b.trt[lines,]
+  com <- com[,2:ncol(com)] %>% as.matrix
+  dist.hi <- as.numeric(dist(meta$hi_cont))
+  dist.spatial <- spDists(as.matrix(meta[,c('long','lat')]),longlat = T)
+  dist.spatial <- as.numeric(dist.spatial[lower.tri(dist.spatial, diag=F)])
+  sim.cc <- 1-(as.numeric(vegdist(com,method='jaccard',binary=T)))
+  plot(log1p(sim.cc)~dist.hi,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='HI difference')
+  mod1 <- lm(log1p(sim.cc)~dist.hi)
+  legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod1)$r.squared,2))))
+  abline(mod1,lwd=3,col='navy blue')
+  legend('topleft',bty='n',legend=expression(italic(bacterio)))
+  plot(log1p(sim.cc)~dist.spatial,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='spatial distance (km)')
+  mod2 <- lm(log1p(sim.cc)~dist.spatial)
+  legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod2)$r.squared,2))))
+  abline(mod2,lwd=3,col='dark orange')
+  
+  lines <- which(p.trt$ecozone == ecozone)
+  com <- bacterio[lines,]
+  meta <- p.trt[lines,]
+  com <- com[,2:ncol(com)] %>% as.matrix
+  dist.hi <- as.numeric(dist(meta$hi_cont))
+  dist.spatial <- spDists(as.matrix(meta[,c('long','lat')]),longlat = T)
+  dist.spatial <- as.numeric(dist.spatial[lower.tri(dist.spatial, diag=F)])
+  sim.cc <- 1-(as.numeric(vegdist(com,method='jaccard',binary=T)))
+  plot(log1p(sim.cc)~dist.hi,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='HI difference')
+  mod1 <- lm(log1p(sim.cc)~dist.hi)
+  legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod1)$r.squared,2))))
+  abline(mod1,lwd=3,col='navy blue')
+  legend('topleft',bty='n',legend=expression(italic(phyto)))
+  plot(log1p(sim.cc)~dist.spatial,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='spatial distance (km)')
+  mod2 <- lm(log1p(sim.cc)~dist.spatial)
+  legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod2)$r.squared,2))))
+  abline(mod2,lwd=3,col='dark orange')
+  
+  lines <- which(z.trt$ecozone == ecozone)
+  com <- zoo.biomass.grouped[lines,]
+  meta <- z.trt[lines,]
+  com <- com[,2:ncol(com)] %>% as.matrix
+  dist.hi <- as.numeric(dist(meta$hi_cont))
+  dist.spatial <- spDists(as.matrix(meta[,c('long','lat')]),longlat = T)
+  dist.spatial <- as.numeric(dist.spatial[lower.tri(dist.spatial, diag=F)])
+  sim.cc <- 1-(as.numeric(vegdist(com,method='jaccard',binary=T)))
+  plot(log1p(sim.cc)~dist.hi,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='HI difference')
+  mod1 <- lm(log1p(sim.cc)~dist.hi)
+  legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod1)$r.squared,2))))
+  abline(mod1,lwd=3,col='navy blue')
+  legend('topleft',bty='n',legend=expression(italic(zoo)))
+  plot(log1p(sim.cc)~dist.spatial,pch=16,cex=0.2,bty='l',col=alpha(1,0.3),ylab='community similarity',xlab='spatial distance (km)')
+  mod2 <- lm(log1p(sim.cc)~dist.spatial)
+  legend('topright',bty='n',legend=bquote(R^2 == .(round(summary(mod2)$r.squared,2))))
+  abline(mod2,lwd=3,col='dark orange')
+
+  mtext(ecozone,side=3,outer=T)  
+}
+
+dev.off()
+  
