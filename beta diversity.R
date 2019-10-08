@@ -29,8 +29,8 @@ basic.data$hi_class2 <- 'low'
 basic.data$hi_class2[basic.data$HI > 0.05] <- 'moderate'
 basic.data$hi_class2[basic.data$HI > 0.4] <- 'high'
 
-trt <- basic.data %>% select(Lake_ID, hi_class2, size_class, ecozone, HI, area) %>%
-  rename(hi_cont = HI, area_cont = area) %>%
+trt <- basic.data %>% select(Lake_ID, hi_class2, size_class, ecozone, HI, area, latitude, longitude) %>%
+  rename(hi_cont = HI, area_cont = area, lat=latitude,long=longitude) %>%
   rename(area = size_class, HI = hi_class2)
 
 #### community matrix ####
@@ -205,4 +205,18 @@ for(i in 1:3){
 mtext(expression('contribution to'~italic(beta)~diversity~'(proportion)'),side=2,outer=T, cex=1.2, line=2)
 dev.off()
 
-######
+###### Turnover along continuous gradient #####
+
+library(sp)
+
+com <- zoo.biomass.grouped
+
+com <- com[,2:ncol(com)] %>% as.matrix
+
+dist.hi <- as.numeric(dist(z.trt$hi_cont))
+dist.spatial <- spDists(as.matrix(z.trt[,c('long','lat')]),longlat = T)
+dist.spatial <- as.numeric(lower.tri(dist.spatial, diag=F))
+sim.cc <- 1-(as.numeric(vegdist(com,method='jaccard',binary=T)))
+
+plot(sim.cc~dist.hi)
+plot(sim.cc~dist.spatial)
