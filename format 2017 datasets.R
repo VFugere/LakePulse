@@ -2,6 +2,7 @@ rm(list=ls())
 
 library(tidyverse)
 library(readxl)
+library(vegan)
 
 #basic data data
 
@@ -133,6 +134,9 @@ sum(colSums(bacterio[,2:ncol(bacterio)]) == 2)
 to.rm <- which(rowSums(bacterio[,2:ncol(bacterio)]) < 1500)
 bacterio <- bacterio[-(to.rm),]
 
+#rarefying to 15K to be consistent with Susanne
+bacterio[,2:ncol(bacterio)] <- rrarefy(bacterio[,2:ncol(bacterio)], 15000)
+                                       
 #removing global single and doubletons
 to.rm <- as.numeric(which(colSums(bacterio[,2:ncol(bacterio)]) < 3))+1
 bacterio <- bacterio[,-(to.rm)]
