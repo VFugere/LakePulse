@@ -130,33 +130,40 @@ dev.off()
 
 ##### beta diversity partitioning #####
 
-par(mfrow=c(1,2))
+pdf('~/Desktop/betadivpart.pdf',width=3,height=4.5,pointsize = 8)
+
+par(mfrow=c(2,1),mar=c(4,2,3,1),oma=c(0,4,0,0),cex=1)
 
 z<-beta.div.comp(zoo.biomass.grouped[,2:ncol(zoo.biomass.grouped)], coef='J', quant=F)
 p<-beta.div.comp(phyto[,2:ncol(phyto)], coef='J', quant=F)
 b<-beta.div.comp(bacterio[,2:ncol(bacterio)], coef='J', quant=F)
-barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,2),width=0.5,cex.lab=0.7,cex.axis=0.7,cex.names=0.7,col=c('navyblue','gray82'),ylab='relative contribution to total dissimilarity')
-legend(horiz=T,'topleft',inset=c(0.1,-0.1),xpd=T,cex=0.7, pt.cex=1, legend=c(expression(paste(Delta,' richness',sep='')),'replacement'),pch=22,pt.bg=c('gray82','navyblue'),bty='n')
+barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,1.75),width=0.5,cex.lab=1,cex.axis=1,cex.names=1,col=c('navyblue','gray82'),ylab=NULL)
+title(xlab='species occurence',cex=1.2)
+legend(horiz=T,'topleft',inset=c(0.1,-0.2),xpd=T,cex=1, pt.cex=1, legend=c(expression(paste(Delta,' richness',sep='')),'replacement'),pch=22,pt.bg=c('gray82','navyblue'),bty='n')
 
 z<-beta.div.comp(zoo.biomass.grouped[,2:ncol(zoo.biomass.grouped)], coef='J', quant=T)
 p<-beta.div.comp(phyto[,2:ncol(phyto)], coef='J', quant=T)
 b<-beta.div.comp(bacterio[,2:ncol(bacterio)], coef='J', quant=T)
-barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,2),width=0.5,cex.lab=0.7,cex.axis=0.7,cex.names=0.7,col=c('navyblue','gray82'),ylab='relative contribution to total dissimilarity')
-legend(horiz=T,'topleft',inset=c(0.1,-0.1),xpd=T,cex=0.7, pt.cex=1, legend=c(expression(paste(Delta,' abundance',sep='')),'replacement'),pch=22,pt.bg=c('gray82','navyblue'),bty='n')
+barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,1.75),width=0.5,cex.lab=1,cex.axis=1,cex.names=1,col=c('navyblue','gray82'),ylab=NULL)
+title(xlab='species abundance',cex=1.2)
+legend(horiz=T,'topleft',inset=c(0.1,-0.2),xpd=T,cex=1, pt.cex=1, legend=c(expression(paste(Delta,' abundance',sep='')),'replacement'),pch=22,pt.bg=c('gray82','navyblue'),bty='n')
 
-#does not change anything
-z<-beta.div.comp(zoo.biomass.grouped[,2:ncol(zoo.biomass.grouped)], coef='S', quant=F)
-p<-beta.div.comp(phyto[,2:ncol(phyto)], coef='S', quant=F)
-b<-beta.div.comp(bacterio[,2:ncol(bacterio)], coef='S', quant=F)
-barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,2),width=0.5,cex.lab=0.7,cex.axis=0.7,cex.names=0.7,col=c('navyblue','gray82'),ylab='relative contribution to total dissimilarity')
-legend(horiz=T,'topleft',inset=c(0.1,-0.1),xpd=T,cex=0.7, pt.cex=1, legend=c(expression(paste(Delta,' richness',sep='')),'replacement'),pch=22,pt.bg=c('gray82','navyblue'),bty='n')
+mtext(expression('contribution to'~italic(beta)~diversity~'(proportion)'),side=2,outer=T,line=2,cex=1.2)
+dev.off()
 
-#does not change anything
-z<-beta.div.comp(zoo.biomass.grouped[,2:ncol(zoo.biomass.grouped)], coef='S', quant=T)
-p<-beta.div.comp(phyto[,2:ncol(phyto)], coef='S', quant=T)
-b<-beta.div.comp(bacterio[,2:ncol(bacterio)], coef='S', quant=T)
-barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,2),width=0.5,cex.lab=0.7,cex.axis=0.7,cex.names=0.7,col=c('navyblue','gray82'),ylab='relative contribution to total dissimilarity')
-legend(horiz=T,'topleft',inset=c(0.1,-0.1),xpd=T,cex=0.7, pt.cex=1, legend=c(expression(paste(Delta,' abundance',sep='')),'replacement'),pch=22,pt.bg=c('gray82','navyblue'),bty='n')
+# #does not change anything
+# z<-beta.div.comp(zoo.biomass.grouped[,2:ncol(zoo.biomass.grouped)], coef='S', quant=F)
+# p<-beta.div.comp(phyto[,2:ncol(phyto)], coef='S', quant=F)
+# b<-beta.div.comp(bacterio[,2:ncol(bacterio)], coef='S', quant=F)
+# barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,2),width=0.5,cex.lab=0.7,cex.axis=0.7,cex.names=0.7,col=c('navyblue','gray82'),ylab='relative contribution to total dissimilarity')
+# legend(horiz=T,'topleft',inset=c(0.1,-0.1),xpd=T,cex=0.7, pt.cex=1, legend=c(expression(paste(Delta,' richness',sep='')),'replacement'),pch=22,pt.bg=c('gray82','navyblue'),bty='n')
+# 
+# #does not change anything
+# z<-beta.div.comp(zoo.biomass.grouped[,2:ncol(zoo.biomass.grouped)], coef='S', quant=T)
+# p<-beta.div.comp(phyto[,2:ncol(phyto)], coef='S', quant=T)
+# b<-beta.div.comp(bacterio[,2:ncol(bacterio)], coef='S', quant=T)
+# barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,2),width=0.5,cex.lab=0.7,cex.axis=0.7,cex.names=0.7,col=c('navyblue','gray82'),ylab='relative contribution to total dissimilarity')
+# legend(horiz=T,'topleft',inset=c(0.1,-0.1),xpd=T,cex=0.7, pt.cex=1, legend=c(expression(paste(Delta,' abundance',sep='')),'replacement'),pch=22,pt.bg=c('gray82','navyblue'),bty='n')
 
 #split by factor levels
 
@@ -164,129 +171,38 @@ z.trt <- zoo.biomass.grouped %>% select(Lake_ID) %>% left_join(trt, by='Lake_ID'
 p.trt <- phyto %>% select(Lake_ID) %>% left_join(trt, by='Lake_ID')
 b.trt <- bacterio %>% select(Lake_ID) %>% left_join(trt, by='Lake_ID')
 
-pdf('~/Desktop/betadivpart_area.pdf',width=6,height=4.5,pointsize = 8)
+pdf('~/Desktop/betadivpart_levels.pdf',width=7,height=4,pointsize = 10)
 par(mfrow=c(2,3),mar=c(4,2,1,1),oma=c(0,4,0,0),cex=1)
 
 sizes <- c('small','medium','large')
+
 for(i in 1:3){
   lev <- sizes[i]
   z<-beta.div.comp(zoo.biomass.grouped[z.trt$area == lev,2:ncol(zoo.biomass.grouped)], coef='J', quant=F)
   p<-beta.div.comp(phyto[p.trt$area == lev,2:ncol(phyto)], coef='J', quant=F)
   b<-beta.div.comp(bacterio[b.trt$area == lev,2:ncol(bacterio)], coef='J', quant=F)
-  barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,2),width=0.5,cex.lab=0.7,cex.axis=0.7,cex.names=0.7,col=c(cols[i],'gray82'),ylab=NULL)
-  #if(i==1){legend(horiz=T,'topleft',inset=c(0.1,-0.1),xpd=T,cex=1, pt.cex=1, legend=c(expression(paste(Delta,' richness',sep='')),'replacement'),pch=22,pt.bg=c('gray82','navyblue'),bty='n')}
-  title(xlab=lev)
+  barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,1.75),width=0.5,cex.lab=1,cex.axis=1,cex.names=0.8,col=c(cols[i],'gray82'),ylab=NULL)
+  #if(i==1){legend(horiz=T,'topleft',inset=c(0.1,-0.2),xpd=T,cex=1, pt.cex=1, legend=c(expression(paste(Delta,' richness',sep='')),'replacement'),pch=22,pt.bg=c('gray82','navyblue'),bty='n')}
+  title(xlab=lev,cex=1.2)
 }
 
-for(i in 1:3){
-  lev <- sizes[i]
-  z<-beta.div.comp(zoo.biomass.grouped[z.trt$area == lev,2:ncol(zoo.biomass.grouped)], coef='J', quant=T)
-  p<-beta.div.comp(phyto[p.trt$area == lev,2:ncol(phyto)], coef='J', quant=T)
-  b<-beta.div.comp(bacterio[b.trt$area == lev,2:ncol(bacterio)], coef='J', quant=T)
-  barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,2),width=0.5,cex.lab=0.7,cex.axis=0.7,cex.names=0.7,col=c(cols[i],'gray82'),ylab=NULL)
-  #if(i==1){legend(horiz=T,'topleft',inset=c(0.1,-0.1),xpd=T,cex=1, pt.cex=1, legend=c(expression(paste(Delta,' abundance',sep='')),'replacement'),pch=22,pt.bg=c('gray82','navyblue'),bty='n')}
-  title(xlab=lev)
-}
-
-mtext(expression('% contribution to'~italic(beta)~diversity),side=2,outer=T)
-dev.off()
 
 #HI
 
 HI <- c('low','moderate','high')
 
-pdf('~/Desktop/betadivpart_HI.pdf',width=6,height=4.5,pointsize = 8)
-par(mfrow=c(2,3),mar=c(4,2,1,1),oma=c(0,4,0,0),cex=1)
 
-sizes <- c('small','medium','large')
 for(i in 1:3){
   lev <- HI[i]
   z<-beta.div.comp(zoo.biomass.grouped[z.trt$HI == lev,2:ncol(zoo.biomass.grouped)], coef='J', quant=F)
   p<-beta.div.comp(phyto[p.trt$HI == lev,2:ncol(phyto)], coef='J', quant=F)
   b<-beta.div.comp(bacterio[b.trt$HI == lev,2:ncol(bacterio)], coef='J', quant=F)
-  barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,2),width=0.5,cex.lab=0.7,cex.axis=0.7,cex.names=0.7,col=c(cols[i],'gray82'),ylab=NULL)
+  barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,1.75),width=0.5,cex.lab=1,cex.axis=1,cex.names=0.8,col=c(cols[i],'gray82'),ylab=NULL)
   #if(i==1){legend(horiz=T,'topleft',inset=c(0.1,-0.15),xpd=T,cex=0.9, pt.cex=1, legend=c(expression(paste(Delta,' richness',sep='')),'replacement'),pch=22,pt.bg=c('gray82','navyblue'),bty='n')}
-  title(xlab=lev)
+  title(xlab=lev,cex=1.2)
 }
 
-for(i in 1:3){
-  lev <- HI[i]
-  z<-beta.div.comp(zoo.biomass.grouped[z.trt$HI == lev,2:ncol(zoo.biomass.grouped)], coef='J', quant=T)
-  p<-beta.div.comp(phyto[p.trt$HI == lev,2:ncol(phyto)], coef='J', quant=T)
-  b<-beta.div.comp(bacterio[b.trt$HI == lev,2:ncol(bacterio)], coef='J', quant=T)
-  barplot(cbind(b$part[4:5],p$part[4:5],z$part[4:5]),names.arg=c('bacterio','phyto','zoo'),ylim=c(0,1),xlim=c(0,2),width=0.5,cex.lab=0.7,cex.axis=0.7,cex.names=0.7,col=c(cols[i],'gray82'),ylab=NULL)
-  #if(i==1){legend(horiz=T,'topleft',inset=c(0.1,-0.15),xpd=T,cex=0.9, pt.cex=1, legend=c(expression(paste(Delta,' abundance',sep='')),'replacement'),pch=22,pt.bg=c('gray82','navyblue'),bty='n')}
-  title(xlab=lev)
-}
-
-mtext(expression('% contribution to'~italic(beta)~diversity),side=2,outer=T,line=2)
+mtext(expression('contribution to'~italic(beta)~diversity~'(proportion)'),side=2,outer=T, cex=1.2, line=2)
 dev.off()
 
 ######
-
-### separating ecozones
-
-HI_classes <- levels(meta$HI)
-ecozones <- levels(meta$ecozone)
-areas <- levels(meta$area)
-
-par(mfrow=c(2,2))
-
-#effect of HI
-
-for(ecozone in ecozones){
-  
-  lines <- which(meta$ecozone == ecozone & meta$area != 'large')
-  com.sub <- com[lines,]
-  meta.sub <- meta[lines,]
-  
-  # com.sub[com.sub > 0] <- 1
-  # com.sub <- decostand(com.sub,method='total')
-  # com.sub <- decostand(com.sub,method='hellinger')
-  # com.sub <- log1p(com.sub)
-  # com.sub <- sqrt(com.sub)
-  com.sub <- wisconsin(com.sub)
-  
-  dm <- vegdist(com.sub,method = 'bray')
-  
-  #testing whether HI differ in centroid location and mean dissimilarity
-  cc <- adonis(dm~meta.sub$HI)
-  p.cc <- round(cc$aov.tab$`Pr(>F)`,2)[1]
-  
-  bd <- anova(betadisper(d=dm, group=meta.sub$HI, type='centroid'))
-  p.bd <- round(bd$`Pr(>F)`[1],2)
-  
-  plot(betadisper(d=dm, group=meta.sub$HI, type='centroid'),hull=T,label=F,segments=F,col=cols,pch=rep(1,3),cex=0.2)
-  legend('topleft',bty='n',legend=c(p.cc,p.bd))
-  legend('topright',bty='n',legend=levels(meta.sub$HI),pch=16,col=cols)
-  
-}
-
-#effect of area
-for(ecozone in ecozones){
-  
-  lines <- which(meta$ecozone == ecozone & meta$HI != 'high')
-  com.sub <- com[lines,]
-  meta.sub <- meta[lines,]
-  
-  # com.sub[com.sub > 0] <- 1
-  # com.sub <- decostand(com.sub,method='total')
-  # com.sub <- decostand(com.sub,method='hellinger')
-  # com.sub <- log1p(com.sub)
-  # com.sub <- sqrt(com.sub)
-  com.sub <- wisconsin(com.sub)
-  
-  dm <- vegdist(com.sub,method = 'bray')
-  
-  #testing whether area differ in centroid location and mean dissimilarity
-  cc <- adonis(dm~meta.sub$area)
-  p.cc <- round(cc$aov.tab$`Pr(>F)`,2)[1]
-  
-  bd <- anova(betadisper(d=dm, group=meta.sub$area, type='centroid'))
-  p.bd <- round(bd$`Pr(>F)`[1],2)
-  
-  plot(betadisper(d=dm, group=meta.sub$area, type='centroid'),hull=T,label=F,segments=F,col=cols,pch=rep(1,3),cex=0.2)
-  legend('topleft',bty='n',legend=c(p.cc,p.bd))
-  legend('topright',bty='n',legend=levels(meta.sub$area),pch=16,col=cols)
-  
-}
