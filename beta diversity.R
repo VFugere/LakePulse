@@ -11,7 +11,7 @@ library(sp)
 #functions
 make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y)))))
 '%!in%' <- function(x,y)!('%in%'(x,y))
-source_url("https://raw.githubusercontent.com/VFugere/LakePulse/master/mybxp.R")
+source_url("https://raw.githubusercontent.com/VFugere/LakePulse/master/custom_plots.R")
 
 #cols
 cols <- brewer.pal(7, 'Dark2')[1:3] 
