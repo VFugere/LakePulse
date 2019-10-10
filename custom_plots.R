@@ -5,6 +5,6 @@ mybxp <- function(x,y,colvec,ylab){
 
 mybubble <- function(x,y,z){
   plot(y~x, bty='n', xlab='Lake area',ylab='human impact index',type='n')
-  cexvec <- scales::rescale(z, from=0.5, to=3.5)
+  cexvec <- scales::rescale(z, to=c(0.5,3.5))
   points(y~x, cex=cexvec, pch=16, col = scales::alpha('navy blue',0.5))
 }
