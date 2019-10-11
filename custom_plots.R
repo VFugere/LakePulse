@@ -20,6 +20,23 @@ mybubble <- function(x,y,z,name='',ez=F){
   }
 }
 
+mybubble2 <- function(x,y,z,name='',ez=F){
+  plot(y~x, bty='l', ylab='human impact index',ylim=c(0,1),type='n',log='x',xaxt='n',yaxt='n')
+  axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
+  axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
+  cexvec <- scales::rescale(z, to=c(0.5,3.5))
+  if(name != ''){
+    legend('topright',bty='n',legend=make.italic(name))
+    #points(x=c(10^1,10^1.25,10^1.5,10^1.75,10^2),y=rep(0.85,5),pch=1,cex=seq(0.5,3.5,length.out = 5))
+  }
+  if(length(ez) == 1){
+    points(y~x, cex=cexvec, pch=16, col = scales::alpha('navy blue',0.5))
+  }else{
+    points(y~x, cex=cexvec, pch=16, col = scales::alpha(cols2[as.numeric(ez)],0.5))
+    legend('right',bty='n',legend=levels(ez),pch=16,col=cols2)
+  }
+}
+
 mapplot <- function(x,y,z,name){
   
   xrange <- range(x)+c(-2,2)
