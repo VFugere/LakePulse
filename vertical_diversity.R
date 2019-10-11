@@ -5,6 +5,7 @@ library(tidyverse)
 library(vegan)
 library(RColorBrewer)
 library(rworldmap)
+library(party)
 
 #functions
 make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y)))))
@@ -47,6 +48,10 @@ b.div <- data.frame('Lake_ID' = bacterio$Lake_ID, 'bdiv' = specnumber(bacterio[,
 p.div <- data.frame('Lake_ID' = phyto.euk$Lake_ID, 'pdiv' = specnumber(phyto.euk[,2:ncol(phyto.euk)]))
 z.div <- data.frame('Lake_ID' = zoo$Lake_ID, 'zdiv' = specnumber(zoo[,2:ncol(zoo)]))
 
+b.div <- data.frame('Lake_ID' = bacterio$Lake_ID, 'bdiv' = exp(diversity(bacterio[,2:ncol(bacterio)])))
+p.div <- data.frame('Lake_ID' = phyto.euk$Lake_ID, 'pdiv' = exp(diversity(phyto.euk[,2:ncol(phyto.euk)])))
+z.div <- data.frame('Lake_ID' = zoo$Lake_ID, 'zdiv' = exp(diversity(zoo[,2:ncol(zoo)])))
+
 prop.func <- function(x){x/.data$tdiv}
 div.merge <- inner_join(b.div, p.div) %>% inner_join(z.div) %>%
   mutate(tdiv = bdiv+pdiv+zdiv) %>%
@@ -74,6 +79,22 @@ mapplot(div.merge$longitude,div.merge$latitude,div.merge$pz.ratio,'zooplankton:p
 div.merge %>% select(depth_m,watershed_km2,latitude,longitude,fraction_agriculture:fraction_water,pdiv,bdiv,zdiv,prel,brel,zrel,pz.ratio) %>% plot
 div.merge %>% select(depth_m,pdiv,bdiv,zdiv,prel,brel,zrel,pz.ratio) %>% mutate_all(log) %>% plot
 
+subd <- div.merge %>% select(depth_m,watershed_km2,ecozone,area,HI,latitude,longitude,fraction_agriculture:fraction_water,pdiv,bdiv,zdiv,prel,brel,zrel,pz.ratio)
+sub2 <- select(subd, depth_m:fraction_water,pdiv)
+plot(ctree(pdiv ~ ., sub2))
+sub2 <- select(subd, depth_m:fraction_water,bdiv)
+plot(ctree(bdiv ~ ., sub2))
+sub2 <- select(subd, depth_m:fraction_water,zdiv)
+plot(ctree(zdiv ~ ., sub2))
+sub2 <- select(subd, depth_m:fraction_water,prel)
+plot(ctree(prel ~ ., sub2))
+sub2 <- select(subd, depth_m:fraction_water,zrel)
+plot(ctree(zrel ~ ., sub2))
+sub2 <- select(subd, depth_m:fraction_water,pz.ratio)
+plot(ctree(pz.ratio ~ ., sub2))
+
+mybubble2(div.merge$depth_m,div.merge$HI,div.merge$pz.ratio,name='zoo/phyto div',ez=div.merge$ecozone)
+
 #### same thing with biomass/biovolume ####
 
 ep.biov <- data.frame('Lake_ID' = phyto.euk$Lake_ID, 'epbiov' = apply(phyto.euk[,2:ncol(phyto.euk)],1,FUN='sum'))
@@ -81,33 +102,30 @@ p.biov <- data.frame('Lake_ID' = phyto$Lake_ID, 'pbiov' = apply(phyto[,2:ncol(ph
 z.biom <- data.frame('Lake_ID' = zoo$Lake_ID, 'zbiom' = apply(zoo[,2:ncol(zoo)],1,FUN='sum'))
 
 bio.merge <- inner_join(p.biov, z.biom) %>%
+  left_join(ep.biov) %>%
   left_join(basic.data) %>%
-  mutate(prop = zbiom/pbiov)
+  mutate(prop.p = zbiom/pbiov, prop.ep = zbiom/epbiov)
 
-mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$pbiov))
-mybubble(bio.merge$area,bio.merge$HI,bio.merge$zbiom)
-mybubble(bio.merge$area,bio.merge$HI,bio.merge$prop)
+mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$pbiov),name='phyto biov',ez=bio.merge$ecozone)
+mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$epbiov),name='euk phyto biov',ez=bio.merge$ecozone)
+mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$zbiom),name='zoo biomass',ez=bio.merge$ecozone)
+mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$prop.p),name='zoo:phyto',ez=bio.merge$ecozone)
+mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$prop.ep),name='zoo:euk phyto',ez=bio.merge$ecozone)
 
 mapplot(bio.merge$longitude,bio.merge$latitude,log(bio.merge$pbiov),'phyto biovolume (logged)')
+mapplot(bio.merge$longitude,bio.merge$latitude,log(bio.merge$epbiov),'euk phyto biovolume (logged)')
 mapplot(bio.merge$longitude,bio.merge$latitude,log(bio.merge$zbiom),'zoo biomass (logged)')
-mapplot(bio.merge$longitude,bio.merge$latitude,bio.merge$prop,'zoo:phyto')
+mapplot(bio.merge$longitude,bio.merge$latitude,bio.merge$prop.p,'zoo:phyto')
+mapplot(bio.merge$longitude,bio.merge$latitude,bio.merge$prop.ep,'zoo:euk phyto')
 
-bio.merge %>% select(depth_m,pbiov,zbiom,prop) %>% plot
-bio.merge %>% select(depth_m,pbiov,zbiom,prop) %>% mutate_all(log) %>% plot
-
-#
-
-bio.merge <- inner_join(ep.biov, z.biom) %>%
-  left_join(basic.data) %>%
-  mutate(prop = zbiom/epbiov)
-
-mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$epbiov))
-mybubble(bio.merge$area,bio.merge$HI,bio.merge$zbiom)
-mybubble(bio.merge$area,bio.merge$HI,bio.merge$prop,'zoo/phyto',ez=bio.merge$ecozone)
-
-mapplot(bio.merge$longitude,bio.merge$latitude,log(bio.merge$epbiov),'phyto biovolume (logged)')
-mapplot(bio.merge$longitude,bio.merge$latitude,log(bio.merge$zbiom),'zoo biomass (logged)')
-mapplot(bio.merge$longitude,bio.merge$latitude,log(bio.merge$prop),'zoo:phyto')
-
-bio.merge %>% select(depth_m,epbiov,zbiom,prop) %>% plot
-bio.merge %>% select(depth_m,epbiov,zbiom,prop) %>% mutate_all(log) %>% plot
+subd <- bio.merge %>% select(depth_m,watershed_km2,ecozone,area,HI,latitude,longitude,fraction_agriculture:fraction_water,pbiov,epbiov,zbiom,prop.p,prop.ep)
+sub2 <- select(subd, depth_m:fraction_water,pbiov)
+plot(ctree(log(pbiov) ~ ., sub2))
+sub2 <- select(subd, depth_m:fraction_water,epbiov)
+plot(ctree(log(epbiov) ~ ., sub2))
+sub2 <- select(subd, depth_m:fraction_water,zbiom)
+plot(ctree(log(zbiom) ~ ., sub2))
+sub2 <- select(subd, depth_m:fraction_water,prop.p)
+plot(ctree(log(prop.p) ~ ., sub2))
+sub2 <- select(subd, depth_m:fraction_water,prop.ep)
+plot(ctree(log(prop.ep) ~ ., sub2))
