@@ -34,9 +34,6 @@ rm(lulc)
 
 #### Creating a merged dataset with diversity of prokaryotic, eukaryotic phyto, and eukaryotic zoo
 
-hist(log(apply(phyto[,2:ncol(phyto)],1,FUN='sum')),breaks=50)
-hist(log(apply(zoo[,2:ncol(zoo)],1,FUN='sum')),breaks=50)
-
 phyto.long <- gather(phyto, taxon, biov ,-Lake_ID)
 phyto.long$class <- phytoT$KINDGOM[match(phyto.long$taxon, phytoT$totalbinomial)]
   
@@ -44,10 +41,12 @@ phyto.euk <- filter(phyto.long, class != 'CYANOBACTERIA') %>%
   select(-class) %>%
   spread(taxon, biov)
 
+#species number
 b.div <- data.frame('Lake_ID' = bacterio$Lake_ID, 'bdiv' = specnumber(bacterio[,2:ncol(bacterio)]))
 p.div <- data.frame('Lake_ID' = phyto.euk$Lake_ID, 'pdiv' = specnumber(phyto.euk[,2:ncol(phyto.euk)]))
 z.div <- data.frame('Lake_ID' = zoo$Lake_ID, 'zdiv' = specnumber(zoo[,2:ncol(zoo)]))
 
+#Shannon exponent instead
 b.div <- data.frame('Lake_ID' = bacterio$Lake_ID, 'bdiv' = exp(diversity(bacterio[,2:ncol(bacterio)])))
 p.div <- data.frame('Lake_ID' = phyto.euk$Lake_ID, 'pdiv' = exp(diversity(phyto.euk[,2:ncol(phyto.euk)])))
 z.div <- data.frame('Lake_ID' = zoo$Lake_ID, 'zdiv' = exp(diversity(zoo[,2:ncol(zoo)])))
