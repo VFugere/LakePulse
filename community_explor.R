@@ -22,6 +22,9 @@ zoo <- zoo.biomass.grouped
 basic.data <- filter(basic.data, year == 2017)
 basic.data$ecozone <- as.factor(basic.data$ecozone)
 levels(basic.data$ecozone) <- c('AH','AM','BS','MP')
+zooT <- readxl::read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/traits/zoo_trait_summary.xlsx')
+zoo <- zoo.biomass.grouped
+zoo <- select(zoo, -harpacticoid, -ostracod)
 
 #map
 map <- getMap(resolution = "low")
@@ -32,7 +35,7 @@ lulc <- select(lulc, -comment,-flag)
 basic.data <- left_join(basic.data,lulc, by = c('Lake_ID' = 'lakepulse_id'))
 rm(lulc)
 
-#### Creating a merged dataset with diversity of prokaryotic, eukaryotic phyto, and eukaryotic zoo
+## formatting and adding some taxonomic info
 
 phyto.long <- gather(phyto, taxon, biov ,-Lake_ID)
 phyto.long$class <- phytoT$KINDGOM[match(phyto.long$taxon, phytoT$totalbinomial)]
@@ -40,6 +43,25 @@ phyto.long$class <- phytoT$KINDGOM[match(phyto.long$taxon, phytoT$totalbinomial)
 phyto.euk <- filter(phyto.long, class != 'CYANOBACTERIA') %>%
   select(-class) %>%
   spread(taxon, biov)
+
+phyto.ffg <- phyto.long %>% group_by(Lake_ID, class) %>%
+  summarize(biov = sum(biov)) %>%
+  ungroup %>%
+  spread(class, biov)
+colnames(phyto.ffg)[2:ncol(phyto.ffg)] <- str_to_lower(colnames(phyto.ffg)[2:ncol(phyto.ffg)])
+phyto.ffg$others <- with(phyto.ffg, chrysophyceae+cryptophyceae+dinophyceae+euglenophyceae+haptophyte)
+                         
+zoo.long <- gather(zoo.biomass.grouped, taxon, biom ,-Lake_ID)
+zoo.long$genus <- sub('\\s.*', '', zoo.long$taxon)
+zoo.long$class <- zooT$class[match(zoo.long$taxon,zooT$taxon)]
+zoo.long$TG <- zooT$TG[match(zoo.long$taxon,zooT$taxon)]
+
+zoo.ffg <- zoo.long %>% group_by(Lake_ID, TG) %>%
+  summarize(biom = sum(biom)) %>%
+  ungroup %>%
+  spread(TG, biom)
+
+#### diversity ratios ####
 
 #species number
 b.div <- data.frame('Lake_ID' = bacterio$Lake_ID, 'bdiv' = specnumber(bacterio[,2:ncol(bacterio)]))
@@ -75,9 +97,6 @@ mapplot(div.merge$longitude,div.merge$latitude,div.merge$prel,'phytoplankton rel
 mapplot(div.merge$longitude,div.merge$latitude,div.merge$zrel,'zooplankton relative diversity')
 mapplot(div.merge$longitude,div.merge$latitude,div.merge$pz.ratio,'zooplankton:phytoplankton diversity')
 
-div.merge %>% select(depth_m,watershed_km2,latitude,longitude,fraction_agriculture:fraction_water,pdiv,bdiv,zdiv,prel,brel,zrel,pz.ratio) %>% plot
-div.merge %>% select(depth_m,pdiv,bdiv,zdiv,prel,brel,zrel,pz.ratio) %>% mutate_all(log) %>% plot
-
 subd <- div.merge %>% select(depth_m,watershed_km2,ecozone,area,HI,latitude,longitude,fraction_agriculture:fraction_water,pdiv,bdiv,zdiv,prel,brel,zrel,pz.ratio)
 sub2 <- select(subd, depth_m:fraction_water,pdiv)
 plot(ctree(pdiv ~ ., sub2))
@@ -99,32 +118,39 @@ mybubble2(div.merge$depth_m,div.merge$HI,div.merge$pz.ratio,name='zoo/phyto div'
 ep.biov <- data.frame('Lake_ID' = phyto.euk$Lake_ID, 'epbiov' = apply(phyto.euk[,2:ncol(phyto.euk)],1,FUN='sum'))
 p.biov <- data.frame('Lake_ID' = phyto$Lake_ID, 'pbiov' = apply(phyto[,2:ncol(phyto)],1,FUN='sum'))
 z.biom <- data.frame('Lake_ID' = zoo$Lake_ID, 'zbiom' = apply(zoo[,2:ncol(zoo)],1,FUN='sum'))
+daphnids <- data.frame('Lake_ID' = zoo$Lake_ID, 'daphnids' = apply(zoo[,3:12],1,FUN='sum'))
 
 bio.merge <- inner_join(p.biov, z.biom) %>%
   left_join(ep.biov) %>%
+  left_join(phyto.ffg) %>%
+  left_join(zoo.ffg) %>%
+  left_join(daphnids) %>%
   left_join(basic.data) %>%
-  mutate(prop.p = zbiom/pbiov, prop.ep = zbiom/epbiov)
+  mutate(prop.p = herb/pbiov, prop.ep = herb/epbiov, prop.d = daphnids/zbiom)
 
 mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$pbiov),name='phyto biov',ez=bio.merge$ecozone)
 mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$epbiov),name='euk phyto biov',ez=bio.merge$ecozone)
 mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$zbiom),name='zoo biomass',ez=bio.merge$ecozone)
-mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$prop.p),name='zoo:phyto',ez=bio.merge$ecozone)
-mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$prop.ep),name='zoo:euk phyto',ez=bio.merge$ecozone)
+mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$prop.p),name='herb:phyto',ez=bio.merge$ecozone)
+mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$prop.ep),name='herb:euk phyto',ez=bio.merge$ecozone)
+mybubble(bio.merge$area,bio.merge$HI,bio.merge$prop.d,name='% daphnids',ez=bio.merge$ecozone)
+mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$chlorophyceae),name='green algae',ez=bio.merge$ecozone)
 
 mapplot(bio.merge$longitude,bio.merge$latitude,log(bio.merge$pbiov),'phyto biovolume (logged)')
 mapplot(bio.merge$longitude,bio.merge$latitude,log(bio.merge$epbiov),'euk phyto biovolume (logged)')
 mapplot(bio.merge$longitude,bio.merge$latitude,log(bio.merge$zbiom),'zoo biomass (logged)')
-mapplot(bio.merge$longitude,bio.merge$latitude,bio.merge$prop.p,'zoo:phyto')
-mapplot(bio.merge$longitude,bio.merge$latitude,bio.merge$prop.ep,'zoo:euk phyto')
+mapplot(bio.merge$longitude,bio.merge$latitude,log(bio.merge$prop.p),'herb:phyto')
+mapplot(bio.merge$longitude,bio.merge$latitude,log(bio.merge$prop.ep),'herb:euk phyto')
+mapplot(bio.merge$longitude,bio.merge$latitude,bio.merge$prop.d,'% daphnids')
+mapplot(bio.merge$longitude,bio.merge$latitude,log1p(bio.merge$haptophyte),'haptophytes')
+mapplot(bio.merge$longitude,bio.merge$latitude,log1p(bio.merge$cyanobacteria),'cyanobacteria')
 
-subd <- bio.merge %>% select(depth_m,watershed_km2,ecozone,area,HI,latitude,longitude,fraction_agriculture:fraction_water,pbiov,epbiov,zbiom,prop.p,prop.ep)
-sub2 <- select(subd, depth_m:fraction_water,pbiov)
-plot(ctree(log(pbiov) ~ ., sub2))
-sub2 <- select(subd, depth_m:fraction_water,epbiov)
-plot(ctree(log(epbiov) ~ ., sub2))
-sub2 <- select(subd, depth_m:fraction_water,zbiom)
-plot(ctree(log(zbiom) ~ ., sub2))
-sub2 <- select(subd, depth_m:fraction_water,prop.p)
-plot(ctree(log(prop.p) ~ ., sub2))
-sub2 <- select(subd, depth_m:fraction_water,prop.ep)
-plot(ctree(log(prop.ep) ~ ., sub2))
+subd <- bio.merge %>% select(pbiov:pred,prop.p,prop.ep,prop.d,depth_m,watershed_km2,ecozone,area,HI,latitude,longitude,fraction_agriculture:fraction_water)
+
+for(i in c(1:13,15:21)){
+  tmp <- subd
+  colnames(tmp)[i] <- 'resp'
+  tmp <- select(tmp, resp, depth_m:fraction_water)
+  plot(ctree(log1p(resp) ~ .,tmp),main=colnames(subd)[i])
+}
+  
