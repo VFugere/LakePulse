@@ -6,6 +6,8 @@ library(vegan)
 library(RColorBrewer)
 library(rworldmap)
 library(party)
+library(mgcv)
+library(itsadug)
 
 #functions
 make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y)))))
@@ -61,26 +63,37 @@ zoo.ffg <- zoo.long %>% group_by(Lake_ID, TG) %>%
   ungroup %>%
   spread(TG, biom)
 
+zoo.herb <- filter(zoo.long, TG == 'herb') %>%
+  select(-genus, -class, -TG) %>%
+  spread(taxon, biom)
+
+zoo.omni <- filter(zoo.long, TG %in% c('omni','pred')) %>%
+  select(-genus, -class, -TG) %>%
+  spread(taxon, biom)
+
 #### diversity ratios ####
 
 #species number
 b.div <- data.frame('Lake_ID' = bacterio$Lake_ID, 'bdiv' = specnumber(bacterio[,2:ncol(bacterio)]))
 p.div <- data.frame('Lake_ID' = phyto.euk$Lake_ID, 'pdiv' = specnumber(phyto.euk[,2:ncol(phyto.euk)]))
 z.div <- data.frame('Lake_ID' = zoo$Lake_ID, 'zdiv' = specnumber(zoo[,2:ncol(zoo)]))
+z.h.div <- data.frame('Lake_ID' = zoo.herb$Lake_ID, 'zhdiv' = specnumber(zoo.herb[,2:ncol(zoo.herb)]))
+z.o.div <- data.frame('Lake_ID' = zoo.omni$Lake_ID, 'zodiv' = specnumber(zoo.omni[,2:ncol(zoo.omni)]))
 
-#Shannon exponent instead
-b.div <- data.frame('Lake_ID' = bacterio$Lake_ID, 'bdiv' = exp(diversity(bacterio[,2:ncol(bacterio)])))
-p.div <- data.frame('Lake_ID' = phyto.euk$Lake_ID, 'pdiv' = exp(diversity(phyto.euk[,2:ncol(phyto.euk)])))
-z.div <- data.frame('Lake_ID' = zoo$Lake_ID, 'zdiv' = exp(diversity(zoo[,2:ncol(zoo)])))
+# #Shannon exponent instead
+# b.div <- data.frame('Lake_ID' = bacterio$Lake_ID, 'bdiv' = exp(diversity(bacterio[,2:ncol(bacterio)])))
+# p.div <- data.frame('Lake_ID' = phyto.euk$Lake_ID, 'pdiv' = exp(diversity(phyto.euk[,2:ncol(phyto.euk)])))
+# z.div <- data.frame('Lake_ID' = zoo$Lake_ID, 'zdiv' = exp(diversity(zoo[,2:ncol(zoo)])))
 
-prop.func <- function(x){x/.data$tdiv}
 div.merge <- inner_join(b.div, p.div) %>% inner_join(z.div) %>%
-  mutate(tdiv = bdiv+pdiv+zdiv) %>%
+  inner_join(z.h.div) %>% inner_join(z.o.div) %>%
+  mutate(tdiv = bdiv+pdiv+zdiv, ediv = zdiv+pdiv) %>%
   left_join(basic.data)
 div.merge$brel <- with(div.merge, bdiv/tdiv)
 div.merge$prel <- with(div.merge, pdiv/tdiv)
 div.merge$zrel <- with(div.merge, zdiv/tdiv)
-div.merge$pz.ratio <- with(div.merge, zdiv/pdiv)
+div.merge$pz.ratio <- with(div.merge, zdiv/ediv) # % of eukaryotes that are zoo
+div.merge$oz.ratio <- with(div.merge, zodiv/ediv) # % of eukaryotes that are zoo
 
 mybubble(div.merge$area,div.merge$HI,div.merge$pdiv,name='phyto div',ez=div.merge$ecozone)
 mybubble(div.merge$area,div.merge$HI,div.merge$bdiv,name='bacterio div',ez=div.merge$ecozone)
@@ -88,16 +101,18 @@ mybubble(div.merge$area,div.merge$HI,div.merge$zdiv,name='zoo div',ez=div.merge$
 mybubble(div.merge$area,div.merge$HI,div.merge$prel,name='rel phyto div',ez=div.merge$ecozone)
 mybubble(div.merge$area,div.merge$HI,div.merge$brel,name='rel bacterio div',ez=div.merge$ecozone)
 mybubble(div.merge$area,div.merge$HI,div.merge$zrel,name='rel zoo div',ez=div.merge$ecozone)
-mybubble(div.merge$area,div.merge$HI,div.merge$pz.ratio,name='zoo/phyto div',ez=div.merge$ecozone)
+mybubble(div.merge$area,div.merge$HI,div.merge$pz.ratio,name='rel zoo div (euk)',ez=div.merge$ecozone)
+mybubble(div.merge$area,div.merge$HI,div.merge$oz.ratio,name='rel omnivore div (euk)',ez=div.merge$ecozone)
 
 mapplot(div.merge$longitude,div.merge$latitude,log(div.merge$bdiv),'bacterial diversity (logged)')
 mapplot(div.merge$longitude,div.merge$latitude,div.merge$pdiv,'phytoplankton diversity')
 mapplot(div.merge$longitude,div.merge$latitude,div.merge$zdiv,'zooplankton diversity')
 mapplot(div.merge$longitude,div.merge$latitude,div.merge$prel,'phytoplankton relative diversity')
 mapplot(div.merge$longitude,div.merge$latitude,div.merge$zrel,'zooplankton relative diversity')
-mapplot(div.merge$longitude,div.merge$latitude,div.merge$pz.ratio,'zooplankton:phytoplankton diversity')
+mapplot(div.merge$longitude,div.merge$latitude,div.merge$pz.ratio,'zooplankton relative diversity (eukaryote)')
+mapplot(div.merge$longitude,div.merge$latitude,div.merge$oz.ratio,'omnivore relative diversity (eukaryote)')
 
-subd <- div.merge %>% select(depth_m,watershed_km2,ecozone,area,HI,latitude,longitude,fraction_agriculture:fraction_water,pdiv,bdiv,zdiv,prel,brel,zrel,pz.ratio)
+subd <- div.merge %>% select(depth_m,watershed_km2,ecozone,area,HI,latitude,longitude,fraction_agriculture:fraction_water,pdiv,bdiv,zdiv,prel,brel,zrel,pz.ratio,oz.ratio)
 sub2 <- select(subd, depth_m:fraction_water,pdiv)
 plot(ctree(pdiv ~ ., sub2))
 sub2 <- select(subd, depth_m:fraction_water,bdiv)
@@ -110,8 +125,29 @@ sub2 <- select(subd, depth_m:fraction_water,zrel)
 plot(ctree(zrel ~ ., sub2))
 sub2 <- select(subd, depth_m:fraction_water,pz.ratio)
 plot(ctree(pz.ratio ~ ., sub2))
+sub2 <- select(subd, depth_m:fraction_water,oz.ratio)
+plot(ctree(oz.ratio ~ ., sub2))
 
-mybubble2(div.merge$depth_m,div.merge$HI,div.merge$pz.ratio,name='zoo/phyto div',ez=div.merge$ecozone)
+mybubble2(div.merge$depth_m,div.merge$HI,div.merge$oz.ratio,name='zoo/phyto div',ez=div.merge$ecozone)
+
+#gam
+
+mod1 <- gam(oz.ratio ~ s(latitude,longitude, bs='gp',k=20) + s(depth_m, k = 10) + s(HI, k = 10) + ti(depth_m,HI,k=10) + s(ecozone, bs='re'), data=div.merge)
+plot(mod1)
+gam.check(mod1)
+#nice!
+anova(mod1) #depth has significant impact but not HI
+model_performance(mod1)
+fvisgam(mod1, view = c('depth_m','HI'), rm.ranef=T)
+
+
+#figure for LP poster
+
+mybubble3(z=div.merge$depth_m, x=div.merge$HI,y=div.merge$oz.ratio, name='2ry consumer vs. eukaryote diversity (%)',ez=div.merge$ecozone)
+mapplot(div.merge$longitude,div.merge$latitude,div.merge$oz.ratio,'2ry consumer vs. total eukaryotic diversity (%)')
+plot(ctree(oz.ratio ~ ., sub2))
+
+
 
 #### same thing with biomass/biovolume ####
 
