@@ -16,7 +16,7 @@ mybubble <- function(x,y,z,name='',ez=F){
   points(y~x, cex=cexvec, pch=16, col = scales::alpha('navy blue',0.5))
   }else{
   points(y~x, cex=cexvec, pch=16, col = scales::alpha(cols2[as.numeric(ez)],0.5))
-  legend('right',bty='n',legend=levels(ez),pch=16,col=cols2)
+  legend('right',bty='n',legend=levels(ez),pch=15,col=cols2)
   }
 }
 
@@ -33,7 +33,7 @@ mybubble2 <- function(x,y,z,name='',ez=F){
     points(y~x, cex=cexvec, pch=16, col = scales::alpha('navy blue',0.5))
   }else{
     points(y~x, cex=cexvec, pch=16, col = scales::alpha(cols2[as.numeric(ez)],0.5))
-    legend('right',bty='n',legend=levels(ez),pch=16,col=cols2)
+    legend('right',bty='n',legend=levels(ez),pch=15,col=cols2)
   }
 }
 
@@ -44,7 +44,7 @@ mybubble3 <- function(x,y,z,name='',ez=F){
   axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
   cexvec <- scales::rescale(z, to=c(0.5,3.5))
   points(y~x, cex=cexvec, pch=16, col = scales::alpha(cols2[as.numeric(ez)],0.5))
-  legend('right',bty='n',legend=levels(ez),pch=16,col=cols2)
+  legend('right',bty='n',legend=levels(ez),pch=15,col=cols2)
   text(x=0.875,y=max(y)*0.95,pos=3,label=make.italic('lake depth'))
   points(x=seq(from=0.75,to=1,length.out = 5),y=rep(max(y)*0.9,5),pch=1,cex=seq(0.5,3.5,length.out = 5))
 }
