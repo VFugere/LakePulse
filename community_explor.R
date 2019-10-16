@@ -8,6 +8,7 @@ library(rworldmap)
 library(party)
 library(mgcv)
 library(itsadug)
+library(performance)
 
 #functions
 make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y)))))
@@ -132,28 +133,41 @@ mybubble2(div.merge$depth_m,div.merge$HI,div.merge$oz.ratio,name='zoo/phyto div'
 
 #gam
 
-mod1 <- gam(oz.ratio ~ s(latitude,longitude, bs='gp',k=20) + s(depth_m, k = 10) + s(HI, k = 10) + ti(depth_m,HI,k=10) + s(ecozone, bs='re'), data=div.merge)
+div.merge$d_log <- log(div.merge$depth_m)
+div.merge$hi_log <- log(div.merge$HI+0.001)
+
+mod1 <- gam(oz.ratio ~ s(latitude,longitude, bs='gp',k=20) + s(d_log, k = 10) + s(hi_log, k = 10) + ti(d_log,hi_log,k=10) + s(ecozone, bs='re'), data=div.merge)
 plot(mod1)
 gam.check(mod1)
 #nice!
 anova(mod1) #depth has significant impact but not HI
 model_performance(mod1)
-fvisgam(mod1, view = c('depth_m','HI'), rm.ranef=T)
-
 
 #figure for LP poster
 
+colfunc <- colorRampPalette(RColorBrewer::brewer.pal(11,'RdYlBu'))
+mapcols <- colfunc(100)[100:1]
+
+pdf('~/Desktop/Fig1.pdf',width=5.5,height=5,pointsize = 12,onefile = T)
 mybubble3(z=div.merge$depth_m, x=div.merge$HI,y=div.merge$oz.ratio, name='2ry consumer vs. eukaryote diversity (%)',ez=div.merge$ecozone)
 mapplot(div.merge$longitude,div.merge$latitude,div.merge$oz.ratio,'2ry consumer vs. total eukaryotic diversity (%)')
 plot(ctree(oz.ratio ~ ., sub2))
-
-
+fvisgam(mod1, view = c('d_log','hi_log'), rm.ranef=T,dec=1,xlab='max depth (log)',ylab='human impact (log)',lwd=1.5,color = mapcols, main = NULL)
+dev.off()
 
 #### same thing with biomass/biovolume ####
 
-ep.biov <- data.frame('Lake_ID' = phyto.euk$Lake_ID, 'epbiov' = apply(phyto.euk[,2:ncol(phyto.euk)],1,FUN='sum'))
+b.div <- data.frame('Lake_ID' = bacterio$Lake_ID, 'bdiv' = specnumber(bacterio[,2:ncol(bacterio)]))
+p.div <- data.frame('Lake_ID' = phyto.euk$Lake_ID, 'pdiv' = specnumber(phyto.euk[,2:ncol(phyto.euk)]))
+z.div <- data.frame('Lake_ID' = zoo$Lake_ID, 'zdiv' = specnumber(zoo[,2:ncol(zoo)]))
+z.h.div <- data.frame('Lake_ID' = zoo.herb$Lake_ID, 'zhdiv' = specnumber(zoo.herb[,2:ncol(zoo.herb)]))
+z.o.div <- data.frame('Lake_ID' = zoo.omni$Lake_ID, 'zodiv' = specnumber(zoo.omni[,2:ncol(zoo.omni)]))
+
 p.biov <- data.frame('Lake_ID' = phyto$Lake_ID, 'pbiov' = apply(phyto[,2:ncol(phyto)],1,FUN='sum'))
+ep.biov <- data.frame('Lake_ID' = phyto.euk$Lake_ID, 'epbiov' = apply(phyto.euk[,2:ncol(phyto.euk)],1,FUN='sum'))
 z.biom <- data.frame('Lake_ID' = zoo$Lake_ID, 'zbiom' = apply(zoo[,2:ncol(zoo)],1,FUN='sum'))
+zh.biom <- data.frame('Lake_ID' = zoo.herb$Lake_ID, 'zhbiom' = apply(zoo.herb[,2:ncol(zoo.herb)],1,FUN='sum'))
+zo.biom <- data.frame('Lake_ID' = zoo.omni$Lake_ID, 'zhbiom' = apply(zoo.omni[,2:ncol(zoo.omni)],1,FUN='sum'))
 daphnids <- data.frame('Lake_ID' = zoo$Lake_ID, 'daphnids' = apply(zoo[,3:12],1,FUN='sum'))
 
 bio.merge <- inner_join(p.biov, z.biom) %>%
@@ -162,7 +176,8 @@ bio.merge <- inner_join(p.biov, z.biom) %>%
   left_join(zoo.ffg) %>%
   left_join(daphnids) %>%
   left_join(basic.data) %>%
-  mutate(prop.p = herb/pbiov, prop.ep = herb/epbiov, prop.d = daphnids/zbiom)
+  mutate(prop.p = herb/pbiov, prop.ep = herb/epbiov, prop.d = daphnids/zbiom,
+         omni.v.herb = (omni+pred)/herb, omni.v.phyto = (omni+pred)/pbiov)
 
 mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$pbiov),name='phyto biov',ez=bio.merge$ecozone)
 mybubble(bio.merge$area,bio.merge$HI,log(bio.merge$epbiov),name='euk phyto biov',ez=bio.merge$ecozone)
@@ -181,12 +196,24 @@ mapplot(bio.merge$longitude,bio.merge$latitude,bio.merge$prop.d,'% daphnids')
 mapplot(bio.merge$longitude,bio.merge$latitude,log1p(bio.merge$haptophyte),'haptophytes')
 mapplot(bio.merge$longitude,bio.merge$latitude,log1p(bio.merge$cyanobacteria),'cyanobacteria')
 
-subd <- bio.merge %>% select(pbiov:pred,prop.p,prop.ep,prop.d,depth_m,watershed_km2,ecozone,area,HI,latitude,longitude,fraction_agriculture:fraction_water)
+subd <- bio.merge %>% select(pbiov:pred,prop.p:omni.v.phyto,depth_m,watershed_km2,ecozone,area,HI,latitude,longitude,fraction_agriculture:fraction_water)
 
-for(i in c(1:13,15:21)){
+for(i in c(1:13,15,16,17,19:23)){
   tmp <- subd
   colnames(tmp)[i] <- 'resp'
   tmp <- select(tmp, resp, depth_m:fraction_water)
   plot(ctree(log1p(resp) ~ .,tmp),main=colnames(subd)[i])
 }
   
+#gam
+
+bio.merge$d_log <- log(bio.merge$depth_m)
+bio.merge$hi_log <- log(bio.merge$HI+0.001)
+bio.merge$resp <- log1p(bio.merge$omni.v.phyto)
+
+mod1 <- gam(resp ~ s(latitude,longitude, bs='gp',k=20) + s(d_log, k = 10) + s(hi_log, k = 10) + ti(d_log,hi_log,k=10) + s(ecozone, bs='re'), data=bio.merge)
+plot(mod1)
+gam.check(mod1)
+#nice!
+anova(mod1) #depth has significant impact but not HI
+model_performance(mod1)
