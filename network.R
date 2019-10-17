@@ -6,11 +6,10 @@ library(readxl)
 library(RColorBrewer)
 library(scales)
 library(netassoc)
-
-
-?make_netassoc_network
-
-https://cran.r-project.org/web/packages/netassoc/index.html
+library(party)
+library(igraph)
+library(cooccur)
+library(bipartite)
 
 #functions
 make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y)))))
@@ -37,10 +36,14 @@ rm(lulc)
 
 phyto.long <- gather(phyto, taxon, biov ,-Lake_ID)
 phyto.long$class <- phytoT$KINDGOM[match(phyto.long$taxon, phytoT$totalbinomial)]
+phytoT$GENUS[is.na(phytoT$GENUS)] <- phytoT$GENUS.UNKNOWN[is.na(phytoT$GENUS)]
+phyto.long$genus <- phytoT$GENUS[match(phyto.long$taxon, phytoT$totalbinomial)]
 
-phyto.euk <- filter(phyto.long, class != 'CYANOBACTERIA') %>%
-  select(-class) %>%
-  spread(taxon, biov)
+phyto.genus <- phyto.long %>% filter(class != 'CYANOBACTERIA') %>% 
+  group_by(Lake_ID, genus) %>%
+  summarize(biov = sum(biov)) %>%
+  ungroup %>%
+  spread(genus, biov)
 
 zoo <- zoo.biomass.grouped 
 zooT <- readxl::read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/traits/zoo_trait_summary.xlsx')
@@ -51,10 +54,129 @@ zoo.long$class <- zooT$class[match(zoo.long$taxon,zooT$taxon)]
 zoo.long$TG <- zooT$TG[match(zoo.long$taxon,zooT$taxon)]
 zoo.long$TGS <- zooT$TGS[match(zoo.long$taxon,zooT$taxon)]
 
-zoo.herb <- filter(zoo.long, TG %in% c('herb','omni')) %>%
-  select(-TG) %>%
-  spread(taxon, biom)
+zoo.genus <- zoo.long %>% filter(TG == 'herb') %>%
+  group_by(Lake_ID, genus) %>%
+  summarize(biom = sum(biom)) %>%
+  ungroup %>%
+  spread(genus, biom)
 
-# dataframe for SEM
+zoo.genus <- select(zoo.genus, -calanoid, -cyclopoid)
 
-data <- inner_join(zoo.herb,)
+data <- inner_join(basic.data,phyto.genus) %>%
+  inner_join(zoo.genus)
+
+#excluding few large lakes
+data <- filter(data, depth_m < 39)
+
+com <- data %>% select(Acanthoceras:Simocephalus) %>% as.matrix
+row.names(com) <- as.character(data$Lake_ID)
+com[com>0] <- 1
+
+## splitting lakes
+
+com.nat <- com[which(data$HI < 0.2),]
+com.nat <- com.nat[,which(colSums(com.nat) != 0)]
+
+com.dist <- com[which(data$HI >= 0.2),]
+com.dist <- com.dist[,which(colSums(com.dist) != 0)]
+
+##all possible bipartite interactions
+
+colnames(phyto.genus)[2:ncol(phyto.genus)] -> p.genera
+colnames(zoo.genus)[2:ncol(zoo.genus)] -> z.genera
+temp <- expand.grid(p.genera,z.genera)
+all.int <- paste(temp$Var1,temp$Var2,sep='_')
+
+#test <- make_netassoc_network(t(com.nat))
+
+## association matrrices formatting
+
+temp <- cooccur(t(com.nat), spp_names = T, thresh=F)
+cm <- temp$results
+cm <- mutate_if(cm, is.factor, as.character)
+cm$pair <- paste(cm$sp1_name,cm$sp2_name,sep='_')
+cm.ah <- filter(cm, pair %in% all.int) #algae-herbivore inter
+inter1 <- data.frame('higher' = cm.ah$sp2_name, 'lower' = cm.ah$sp1_name, 'webID' = 'low impact', freq = cm.ah$obs_cooccur, stringsAsFactors = F)
+
+temp <- cooccur(t(com.dist), spp_names = T, thresh=F)
+cm <- temp$results
+cm <- mutate_if(cm, is.factor, as.character)
+cm$pair <- paste(cm$sp1_name,cm$sp2_name,sep='_')
+cm.ah <- filter(cm, pair %in% all.int) #algae-herbivore inter
+inter2 <- data.frame('higher' = cm.ah$sp2_name, 'lower' = cm.ah$sp1_name, 'webID' = 'high impact', freq = cm.ah$obs_cooccur, stringsAsFactors = F)
+
+inter <- bind_rows(inter1,inter2)
+web <- frame2webs(inter)
+
+#### plotting ####
+
+cols <- c('chocolate4', 'dark green', 'darkgoldenrod3')
+pdf('~/Desktop/bipartite.pdf',width = 13,height=12,pointsize = 12)
+par(mfrow=c(2,1),cex=1)
+
+# low impact web
+phyto.web <- data.frame('genus' = row.names(web[[2]]),stringsAsFactors = F)
+phyto.web$class <- phytoT$KINDGOM[match(phyto.web$genus, phytoT$GENUS)]
+phyto.web$class.s <- 'other'
+phyto.web$class.s[phyto.web$class == 'DIATOMS'] <- 'brown'
+phyto.web$class.s[phyto.web$class == 'CHLOROPHYCEAE'] <- 'green'
+phyto.web <- arrange(phyto.web, class.s)
+nb.browns <- sum(phyto.web$class.s == 'brown')
+nb.greens <- sum(phyto.web$class.s == 'green')
+nb.others <- sum(phyto.web$class.s == 'other')
+seq.web <- list('seq.lower' = phyto.web$genus, 'seq.higher' = colnames(web[[2]]))
+web[[2]] <- sortweb(web[[2]], sort.order="seq", sequence=seq.web)
+colvec <- c(rep(cols[1],nb.browns),rep(cols[2],nb.greens),rep(cols[3],nb.others))
+plotweb(web[[2]], y.width.low=0.03, y.width.high=0.001, ybig=1.5,text.rot = 90, method='normal',col.low=colvec,bor.col.low = colvec,bor.col.interaction = alpha(1,0),col.interaction=rep(colvec,each=ncol(web[[2]])))
+
+# high impact web
+phyto.web <- data.frame('genus' = row.names(web[[1]]),stringsAsFactors = F)
+phyto.web$class <- phytoT$KINDGOM[match(phyto.web$genus, phytoT$GENUS)]
+phyto.web$class.s <- 'other'
+phyto.web$class.s[phyto.web$class == 'DIATOMS'] <- 'brown'
+phyto.web$class.s[phyto.web$class == 'CHLOROPHYCEAE'] <- 'green'
+phyto.web <- arrange(phyto.web, class.s)
+nb.browns <- sum(phyto.web$class.s == 'brown')
+nb.greens <- sum(phyto.web$class.s == 'green')
+nb.others <- sum(phyto.web$class.s == 'other')
+seq.web <- list('seq.lower' = phyto.web$genus, 'seq.higher' = colnames(web[[1]]))
+web[[1]] <- sortweb(web[[1]], sort.order="seq", sequence=seq.web)
+colvec <- c(rep(cols[1],nb.browns),rep(cols[2],nb.greens),rep(cols[3],nb.others))
+plotweb(web[[1]], y.width.low=0.03, y.width.high=0.001, ybig=1.5,text.rot = 90,method='normal',col.low=colvec,bor.col.low = colvec,bor.col.interaction = alpha(1,0),col.interaction=rep(colvec,each=ncol(web[[1]])))
+
+dev.off()
+
+#### extracting a few metrics from the web
+
+networklevel(web[[2]], 'connectance')
+networklevel(web[[1]], 'connectance')
+
+networklevel(web[[2]], 'weighted connectance')
+networklevel(web[[1]], 'weighted connectance')
+
+networklevel(web[[2]], 'web asymmetry')
+networklevel(web[[1]], 'web asymmetry')
+
+networklevel(web[[2]], 'links per species')
+networklevel(web[[1]], 'links per species')
+
+networklevel(web[[2]], 'number of compartments')
+networklevel(web[[1]], 'number of compartments')
+
+networklevel(web[[2]], 'nestedness')
+networklevel(web[[1]], 'nestedness')
+
+networklevel(web[[2]], 'linkage density')
+networklevel(web[[1]], 'linkage density')
+
+networklevel(web[[2]], 'Fisher alpha')
+networklevel(web[[1]], 'Fisher alpha')
+
+networklevel(web[[2]], 'interaction evenness')
+networklevel(web[[1]], 'interaction evenness')
+
+networklevel(web[[2]], 'topology')
+networklevel(web[[1]], 'topology')
+
+networklevel(web[[2]], 'binary')
+networklevel(web[[1]], 'binary')
