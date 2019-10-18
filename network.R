@@ -74,11 +74,16 @@ com[com>0] <- 1
 
 ## splitting lakes
 
-com.nat <- com[which(data$HI < 0.2),]
-com.nat <- com.nat[,which(colSums(com.nat) != 0)]
+#table(Hmisc::cut2(data$HI,g=3))
 
-com.dist <- com[which(data$HI >= 0.2),]
-com.dist <- com.dist[,which(colSums(com.dist) != 0)]
+com.low <- com[which(data$HI < 0.0836),]
+com.low  <- com.low[,which(colSums(com.low) != 0)]
+
+com.mod <- com[which(data$HI >=0.0836 & data$HI < 0.2568),]
+com.mod <- com.mod[,which(colSums(com.mod) != 0)]
+
+com.high <- com[which(data$HI >= 0.2568),]
+com.high <- com.high[,which(colSums(com.high) != 0)]
 
 ##all possible bipartite interactions
 
@@ -91,28 +96,35 @@ all.int <- paste(temp$Var1,temp$Var2,sep='_')
 
 ## association matrrices formatting
 
-temp <- cooccur(t(com.nat), spp_names = T, thresh=F)
+temp <- cooccur(t(com.low), spp_names = T, thresh=F)
 cm <- temp$results
 cm <- mutate_if(cm, is.factor, as.character)
 cm$pair <- paste(cm$sp1_name,cm$sp2_name,sep='_')
 cm.ah <- filter(cm, pair %in% all.int) #algae-herbivore inter
 inter1 <- data.frame('higher' = cm.ah$sp2_name, 'lower' = cm.ah$sp1_name, 'webID' = 'low impact', freq = cm.ah$obs_cooccur, stringsAsFactors = F)
 
-temp <- cooccur(t(com.dist), spp_names = T, thresh=F)
+temp <- cooccur(t(com.mod), spp_names = T, thresh=F)
 cm <- temp$results
 cm <- mutate_if(cm, is.factor, as.character)
 cm$pair <- paste(cm$sp1_name,cm$sp2_name,sep='_')
 cm.ah <- filter(cm, pair %in% all.int) #algae-herbivore inter
-inter2 <- data.frame('higher' = cm.ah$sp2_name, 'lower' = cm.ah$sp1_name, 'webID' = 'high impact', freq = cm.ah$obs_cooccur, stringsAsFactors = F)
+inter2 <- data.frame('higher' = cm.ah$sp2_name, 'lower' = cm.ah$sp1_name, 'webID' = 'moderate impact', freq = cm.ah$obs_cooccur, stringsAsFactors = F)
 
-inter <- bind_rows(inter1,inter2)
+temp <- cooccur(t(com.high), spp_names = T, thresh=F)
+cm <- temp$results
+cm <- mutate_if(cm, is.factor, as.character)
+cm$pair <- paste(cm$sp1_name,cm$sp2_name,sep='_')
+cm.ah <- filter(cm, pair %in% all.int) #algae-herbivore inter
+inter3 <- data.frame('higher' = cm.ah$sp2_name, 'lower' = cm.ah$sp1_name, 'webID' = 'high impact', freq = cm.ah$obs_cooccur, stringsAsFactors = F)
+
+inter <- bind_rows(inter1,inter2,inter3)
 web <- frame2webs(inter)
 
 #### plotting ####
 
 cols <- c('chocolate4', 'dark green', 'darkgoldenrod3')
-pdf('~/Desktop/bipartite.pdf',width = 13,height=12,pointsize = 12)
-par(mfrow=c(2,1),cex=1)
+pdf('~/Desktop/bipartite.pdf',width = 13,height=18,pointsize = 12)
+par(mfrow=c(3,1),cex=1)
 
 # low impact web
 phyto.web <- data.frame('genus' = row.names(web[[2]]),stringsAsFactors = F)
@@ -128,6 +140,21 @@ seq.web <- list('seq.lower' = phyto.web$genus, 'seq.higher' = colnames(web[[2]])
 web[[2]] <- sortweb(web[[2]], sort.order="seq", sequence=seq.web)
 colvec <- c(rep(cols[1],nb.browns),rep(cols[2],nb.greens),rep(cols[3],nb.others))
 plotweb(web[[2]], y.width.low=0.03, y.width.high=0.001, ybig=1.5,text.rot = 90, method='normal',col.low=colvec,bor.col.low = colvec,bor.col.interaction = alpha(1,0),col.interaction=rep(colvec,each=ncol(web[[2]])))
+
+# moderate impact web
+phyto.web <- data.frame('genus' = row.names(web[[3]]),stringsAsFactors = F)
+phyto.web$class <- phytoT$KINDGOM[match(phyto.web$genus, phytoT$GENUS)]
+phyto.web$class.s <- 'other'
+phyto.web$class.s[phyto.web$class == 'DIATOMS'] <- 'brown'
+phyto.web$class.s[phyto.web$class == 'CHLOROPHYCEAE'] <- 'green'
+phyto.web <- arrange(phyto.web, class.s)
+nb.browns <- sum(phyto.web$class.s == 'brown')
+nb.greens <- sum(phyto.web$class.s == 'green')
+nb.others <- sum(phyto.web$class.s == 'other')
+seq.web <- list('seq.lower' = phyto.web$genus, 'seq.higher' = colnames(web[[3]]))
+web[[3]] <- sortweb(web[[3]], sort.order="seq", sequence=seq.web)
+colvec <- c(rep(cols[1],nb.browns),rep(cols[2],nb.greens),rep(cols[3],nb.others))
+plotweb(web[[3]], y.width.low=0.03, y.width.high=0.001, ybig=1.5,text.rot = 90, method='normal',col.low=colvec,bor.col.low = colvec,bor.col.interaction = alpha(1,0),col.interaction=rep(colvec,each=ncol(web[[3]])))
 
 # high impact web
 phyto.web <- data.frame('genus' = row.names(web[[1]]),stringsAsFactors = F)
@@ -146,37 +173,25 @@ plotweb(web[[1]], y.width.low=0.03, y.width.high=0.001, ybig=1.5,text.rot = 90,m
 
 dev.off()
 
-#### extracting a few metrics from the web
+#### extracting a few metrics from the web ####
 
 networklevel(web[[2]], 'connectance')
-networklevel(web[[1]], 'connectance')
-
 networklevel(web[[2]], 'weighted connectance')
-networklevel(web[[1]], 'weighted connectance')
-
 networklevel(web[[2]], 'web asymmetry')
-networklevel(web[[1]], 'web asymmetry')
-
 networklevel(web[[2]], 'links per species')
-networklevel(web[[1]], 'links per species')
-
 networklevel(web[[2]], 'number of compartments')
-networklevel(web[[1]], 'number of compartments')
-
 networklevel(web[[2]], 'nestedness')
-networklevel(web[[1]], 'nestedness')
-
 networklevel(web[[2]], 'linkage density')
-networklevel(web[[1]], 'linkage density')
-
 networklevel(web[[2]], 'Fisher alpha')
-networklevel(web[[1]], 'Fisher alpha')
-
 networklevel(web[[2]], 'interaction evenness')
-networklevel(web[[1]], 'interaction evenness')
-
-networklevel(web[[2]], 'topology')
-networklevel(web[[1]], 'topology')
 
 networklevel(web[[2]], 'binary')
+networklevel(web[[2]], 'topology')
+
+networklevel(web[[2]], 'info')
+networklevel(web[[3]], 'info')
+networklevel(web[[1]], 'info')
+
+networklevel(web[[2]], 'binary')
+networklevel(web[[3]], 'binary')
 networklevel(web[[1]], 'binary')
