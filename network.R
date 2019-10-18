@@ -75,14 +75,18 @@ com[com>0] <- 1
 ## splitting lakes
 
 #table(Hmisc::cut2(data$HI,g=3))
+table(Hmisc::cut2(data$depth_m,g=3))
 
-com.low <- com[which(data$HI < 0.0836),]
+#com.low <- com[which(data$HI < 0.0836),]
+com.low <- com[which(data$depth_m < 5.7),]
 com.low  <- com.low[,which(colSums(com.low) != 0)]
 
-com.mod <- com[which(data$HI >=0.0836 & data$HI < 0.2568),]
+#com.mod <- com[which(data$HI >=0.0836 & data$HI < 0.2568),]
+com.mod <- com[which(data$depth_m >= 5.7 & data$depth_m < 13.5),]
 com.mod <- com.mod[,which(colSums(com.mod) != 0)]
 
-com.high <- com[which(data$HI >= 0.2568),]
+#com.high <- com[which(data$HI >= 0.2568),]
+com.high <- com[which(data$depth_m >= 13.5),]
 com.high <- com.high[,which(colSums(com.high) != 0)]
 
 ##all possible bipartite interactions
