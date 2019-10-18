@@ -147,3 +147,23 @@ summary(mod3)
 
 coefs$est.sc <- rescale(coefs$Std.Estimate, to=c(0.5,5))
 coefs %>% select(Predictor, Response, Estimate, P.Value, est.sc) %>% arrange(Predictor, P.Value)
+
+# a simpler model, 26 paths (max is 28 if 5 data points per path)
+
+mod3 <- psem(
+  
+  lm(cyanos ~ depth + HI, data = dat),
+  
+  lm(euk.phyto ~ depth + HI, data = dat),
+  
+  lm(small_herb ~ depth + HI + cyanos + euk.phyto, data = dat),
+  
+  lm(large_herb ~ depth + HI + euk.phyto + cyanos + small_herb, data = dat),
+  
+  lm(omni ~ depth + HI + euk.phyto + cyanos + small_herb, data = dat),
+  
+  cyanos %~~% euk.phyto,
+  large_herb %~~% omni
+  
+)
+summary(mod3)
