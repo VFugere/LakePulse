@@ -4,6 +4,7 @@ rm(list=ls())
 library(tidyverse)
 library(RColorBrewer)
 library(rworldmap)
+library(readxl)
 
 #functions
 make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y)))))
@@ -23,11 +24,6 @@ levels(basic.data$ecozone) <- c('AH','AM','BS','MP')
 
 #map
 map <- getMap(resolution = "low")
-
-#merged
-
-merged <- inner_join(basic.data, bacterio) %>% 
-  inner_join(phyto) %>% inner_join(zoo)
 
 #LP sites with 3 overlapping datasets
 merged <- inner_join(basic.data,zoo)
@@ -60,3 +56,20 @@ par(mfrow=c(1,2))
 plot(depth_m~area,basic.data,log='x',xlab='lake area',ylab='max depth',pch=16,col=alpha(cols2[basic.data$ecozone],0.5),bty ='l')
 plot(HI~area,basic.data,log='x',xlab='lake area',ylab='human impact index',pch=16,col=alpha(cols2[basic.data$ecozone],0.5),bty ='l')
 dev.off()
+
+## fish
+
+fish <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish/Lake_ID_fish.xlsx')
+
+merged <- inner_join(basic.data,fish, by = 'Lake_ID')
+name <- 'fish occurence (56/217 sites)'
+col <- 'coral3'
+
+x <- basic.data$longitude
+y <- basic.data$latitude
+xrange <- range(x)+c(-2,2)
+yrange <- range(y)+c(-1,1)
+plot(map, xlim = xrange, ylim = yrange,col='light gray',border=0,asp=1.2,axes=F,cex.lab=0.5)
+points(x=x,y=y,pch=1,col=1,cex=1.2)
+points(x=merged$longitude,y=merged$latitude,pch=16,col=alpha(col,0.5),cex=1.1)
+legend('topright',legend=make.italic(name),bty='n',text.col=1)
