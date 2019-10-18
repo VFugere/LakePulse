@@ -129,6 +129,99 @@ for(t in 1:7){
 
 dev.off()
 
+
+#### Lake Pulse AGM figure ####
+
+#### community matrix ####
+
+pdf('~/Desktop/betadiv1.pdf',width=13,height = 7,pointsize = 12)
+layout(rbind(c(1,2,5,7),c(3,4,6,8)))
+par(cex=1,mar=c(4,4,1,1))
+
+com <- bacterio
+meta <- com %>% select(Lake_ID)
+meta <- left_join(meta, trt, by = 'Lake_ID')
+meta$HI_Ez <- paste(meta$ecozone,meta$HI,sep='_')
+meta <- mutate_at(meta, vars(HI:HI_Ez), as.factor)
+meta$HI <- factor(meta$HI, levels=c('low','moderate','high'))
+meta$area <- factor(meta$area, levels=c('small','medium','large'))
+meta$ecozone <- as.factor(meta$ecozone)
+levels(meta$ecozone) <- c('AH','AM','BS','MP')
+com <- com[,2:ncol(com)] %>% as.matrix
+com[is.na(com)] <- 0
+row.names(com) <- 1:nrow(com)
+row.names(meta) <- 1:nrow(meta)
+com.sub <- com
+meta.sub <- meta
+com.sub <- decostand(com.sub,method='total')
+dm <- vegdist(com.sub,method = 'bray')
+
+bd <- betadisper(d=dm, group=meta.sub$area, type='centroid')
+plot(betadisper(d=dm, group=meta.sub$area, type='centroid'),ellipse=F,hull=F,label=F,seg.col=alpha(cols,0.1),segments=T,col=cols,pch=rep(1,3),cex=0.1,main=NULL,sub=NULL,ylab='PCoA2',xlab='PCoA1')
+legend('topleft',bty='n',legend=levels(meta.sub$area),pch=16,col=cols)
+distances <- (betadisper(d=dm, group=meta.sub$area, type='centroid'))$distances
+mybxp(y=distances,x=meta.sub$area,colvec=cols,ylab='distance to centroid',ylims=c(0.3,0.85),xlab='lake area')
+
+bd <- betadisper(d=dm, group=meta.sub$HI, type='centroid')
+plot(betadisper(d=dm, group=meta.sub$HI,type='centroid'),ellipse=F,hull=F,label=F,seg.col=alpha(cols,0.1),segments=T,col=cols,pch=rep(1,3),cex=0.1,main=NULL,sub=NULL,ylab='PCoA2',xlab='PCoA1')
+legend('topleft',bty='n',legend=levels(meta.sub$HI),pch=16,col=cols)
+distances <- (betadisper(d=dm, group=meta.sub$HI, type='centroid'))$distances
+mybxp(y=distances,x=meta.sub$HI,colvec=cols,ylab='distance to centroid',ylims=c(0.3,0.85),xlab='human impact')
+
+com <- phyto
+meta <- com %>% select(Lake_ID)
+meta <- left_join(meta, trt, by = 'Lake_ID')
+meta$HI_Ez <- paste(meta$ecozone,meta$HI,sep='_')
+meta <- mutate_at(meta, vars(HI:HI_Ez), as.factor)
+meta$HI <- factor(meta$HI, levels=c('low','moderate','high'))
+meta$area <- factor(meta$area, levels=c('small','medium','large'))
+meta$ecozone <- as.factor(meta$ecozone)
+levels(meta$ecozone) <- c('AH','AM','BS','MP')
+com <- com[,2:ncol(com)] %>% as.matrix
+com[is.na(com)] <- 0
+row.names(com) <- 1:nrow(com)
+row.names(meta) <- 1:nrow(meta)
+com.sub <- com
+meta.sub <- meta
+com.sub <- decostand(com.sub,method='total')
+dm <- vegdist(com.sub,method = 'bray')
+
+bd <- betadisper(d=dm, group=meta.sub$area, type='centroid')
+distances <- (betadisper(d=dm, group=meta.sub$area, type='centroid'))$distances
+mybxp(y=distances,x=meta.sub$area,colvec=cols,ylab='distance to centroid',ylims=c(0.3,0.85),xlab='lake area')
+
+bd <- betadisper(d=dm, group=meta.sub$HI, type='centroid')
+distances <- (betadisper(d=dm, group=meta.sub$HI, type='centroid'))$distances
+mybxp(y=distances,x=meta.sub$HI,colvec=cols,ylab='distance to centroid',ylims=c(0.3,0.85),xlab='human impact')
+
+com <- zoo.biomass.grouped
+meta <- com %>% select(Lake_ID)
+meta <- left_join(meta, trt, by = 'Lake_ID')
+meta$HI_Ez <- paste(meta$ecozone,meta$HI,sep='_')
+meta <- mutate_at(meta, vars(HI:HI_Ez), as.factor)
+meta$HI <- factor(meta$HI, levels=c('low','moderate','high'))
+meta$area <- factor(meta$area, levels=c('small','medium','large'))
+meta$ecozone <- as.factor(meta$ecozone)
+levels(meta$ecozone) <- c('AH','AM','BS','MP')
+com <- com[,2:ncol(com)] %>% as.matrix
+com[is.na(com)] <- 0
+row.names(com) <- 1:nrow(com)
+row.names(meta) <- 1:nrow(meta)
+com.sub <- com
+meta.sub <- meta
+com.sub <- decostand(com.sub,method='total')
+dm <- vegdist(com.sub,method = 'bray')
+
+bd <- betadisper(d=dm, group=meta.sub$area, type='centroid')
+distances <- (betadisper(d=dm, group=meta.sub$area, type='centroid'))$distances
+mybxp(y=distances,x=meta.sub$area,colvec=cols,ylab='distance to centroid',ylims=c(0.3,0.85),xlab='lake area')
+
+bd <- betadisper(d=dm, group=meta.sub$HI, type='centroid')
+distances <- (betadisper(d=dm, group=meta.sub$HI, type='centroid'))$distances
+mybxp(y=distances,x=meta.sub$HI,colvec=cols,ylab='distance to centroid',ylims=c(0.3,0.85),xlab='human impact')
+
+dev.off()
+
 ##### beta diversity partitioning #####
 
 pdf('~/Desktop/betadivpart.pdf',width=3,height=4.5,pointsize = 8)
