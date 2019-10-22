@@ -95,17 +95,17 @@ colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), 'spp
 colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), 'Daphnia galeata\\.mendotae', 'Daphnia galeata mendotae')
 colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), ' \\.', ' ')
 
-#phyto Bruno
+#phyto
 
-phyto <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/Phytoplankton LakePulse 2017_Bruno.xlsx', sheet='Longform')
+phyto <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/Phytoplankton LakePulse 2017_Jelena.xlsx', sheet='Longform')
 
-phyto <- phyto %>% rename(Lake_ID = lake_id, bv = BV.mm3L.corrected, name = totalbinomial) %>%
+phyto <- phyto %>% rename(Lake_ID = lake_id, bv = Biomass.mgm3, name = totalbinomial) %>%
   select(Lake_ID, name, bv) %>%
+  filter(bv != 0) %>% 
   group_by(Lake_ID, name) %>% 
   summarize(bv = sum(bv, na.rm=T)) %>%
   ungroup %>%
   spread(name, bv) %>%
-  filter(Lake_ID != '06-174') %>% #empty lake! biovolume of 0
   as.data.frame
 
 phyto[is.na(phyto)] <- 0
