@@ -43,6 +43,8 @@ rm(lulc)
 phyto.long <- gather(phyto, taxon, biov ,-Lake_ID)
 phyto.long$class <- phytoT$KINDGOM[match(phyto.long$taxon, phytoT$totalbinomial)]
   
+## SOME NAS IN CLASS! UPDATE TRAIT DATABASE, MAKE A CLEAN ONE
+
 phyto.euk <- filter(phyto.long, class != 'CYANOBACTERIA') %>%
   select(-class) %>%
   spread(taxon, biov)
