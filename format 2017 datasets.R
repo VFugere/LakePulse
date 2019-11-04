@@ -18,6 +18,15 @@ basic.data <- bind_rows(d2017,d2018) %>%
   rename(Lake_ID = lakepulse_id, area = size_km2, HI = hi_index)
 
 rm(d2017,d2018,d2019)
+
+### save Qc lakes as shapefile
+
+LP_Qc <- filter(basic.data, province  == 'QUEBEC')
+LP_shp <-  LP_Qc
+sp::coordinates(LP_shp) <- ~longitude+latitude
+sp::proj4string(LP_shp) <- CRS("+proj=longlat +datum=WGS84")
+raster::shapefile(LP_shp, "~/Desktop/LakePulse_QC.shp")
+write_csv(LP_Qc, '~/Desktop/LP_Qc.csv')
   
 #MP's zoo trait database
 
