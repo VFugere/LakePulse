@@ -1,3 +1,9 @@
+### LOAD LAKE PULSE BASIC INFO
+### ADD HYDROLAKES ATTRIBUTES
+### ADD FRESHWATER ECOREGION
+
+# code by Vincent Fugère (2019)
+
 rm(list=ls())
 library(tidyverse)
 library(skimr)
