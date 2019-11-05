@@ -1,33 +1,14 @@
+### LOAD LAKE PULSE 2017 PLANKTON DATASETS
+### ADD SOME TRAITS AND OTHER INFO
+
+# code by Vincent Fugère (2019)
+
 rm(list=ls())
 
 library(tidyverse)
 library(readxl)
 library(vegan)
 
-#basic data data
-
-d2017 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2017_basic_info.csv', sep = ';', stringsAsFactors = F)
-d2017$year <- 2017
-d2018 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2018_basic_info.csv', sep = ';', stringsAsFactors = F)
-d2018$year <- 2018
-d2019 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2019_basic_info.csv', sep = ';', stringsAsFactors = F)
-d2019$year <- 2019
-
-basic.data <- bind_rows(d2017,d2018) %>%
-  bind_rows(d2019) %>%
-  rename(Lake_ID = lakepulse_id, area = size_km2, HI = hi_index)
-
-rm(d2017,d2018,d2019)
-
-### save Qc lakes as shapefile
-
-LP_Qc <- filter(basic.data, province  == 'QUEBEC')
-LP_shp <-  LP_Qc
-sp::coordinates(LP_shp) <- ~longitude+latitude
-sp::proj4string(LP_shp) <- CRS("+proj=longlat +datum=WGS84")
-raster::shapefile(LP_shp, "~/Desktop/LakePulse_QC.shp")
-write_csv(LP_Qc, '~/Desktop/LP_Qc.csv')
-  
 #MP's zoo trait database
 
 comma2dot <- function(x){as.numeric(str_replace(x,',','.'))}
