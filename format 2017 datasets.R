@@ -135,13 +135,6 @@ bacterio <- bacterio[,-(to.rm)]
 
 bacterioT <- read.table('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/bacterioplankton2017/taxa_ASV.txt', header=T, stringsAsFactors = F)
 
-#check that all names are ok and found in metadata file
-zoo.abund$Lake_ID[!(zoo.abund$Lake_ID %in% basic.data$Lake_ID)]
-zoo.biomass$Lake_ID[!(zoo.biomass$Lake_ID %in% basic.data$Lake_ID)]
-zoo.biomass.grouped$Lake_ID[!(zoo.biomass.grouped$Lake_ID %in% basic.data$Lake_ID)]
-phyto$Lake_ID[!(phyto$Lake_ID %in% basic.data$Lake_ID)]
-bacterio$Lake_ID[!(bacterio$Lake_ID %in% basic.data$Lake_ID)]
-
 # saving
 
 rm(bad.zoo.samples,i,to.rm,comma2dot,return1stval)
