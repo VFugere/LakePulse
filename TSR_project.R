@@ -11,6 +11,8 @@ make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y
 '%!in%' <- function(x,y)!('%in%'(x,y))
 source_url("https://raw.githubusercontent.com/VFugere/LakePulse/master/custom_plots.R")
 
+cols <- brewer.pal(3, 'Dark2')
+
 #### temp data ####
 
 load('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/basic_data.RData')
@@ -27,12 +29,27 @@ alex <- alex %>% filter(Time >= 1950) %>% group_by(Lake_ID) %>% summarize(histte
 lat <- basic.data %>% select(Lake_ID, latitude)
 
 merge <- inner_join(rbr,kestrel) %>% inner_join(alex) %>% inner_join(lat)
-#corrgram::corrgram(merge)
-plot(merge[,2:5])
+# corrgram::corrgram(merge)
+# plot(merge[,2:5])
 
 #air temp and water temp correlate well on sampling day. So I can use air temp as proxy for water temp.
 #mean annual air temp since 1950 correlate almost perfectly with latitude. So can use latitude as a proxy for air temp
 #latitude should provide a proxy for water temp for all lakes.
+
+pdf('~/Desktop/tempgraph.pdf',width=10,height = 5,pointsize = 12)
+par(mfrow=c(1,2), cex=1)
+
+merge <- merge %>% drop_na
+
+scatter.smooth(y=merge$watertemp,x=merge$airtemp,lpars = list(lwd = 5,col=alpha(1,0.5)),pch=16,col=alpha(cols[3],0.5),xlab='air temperature (°C)',ylab='water column  temperature (°C)',bty='l')
+r <- round(cor(y=merge$watertemp,x=merge$airtemp),2)
+legend('topright',bty='n',legend=bquote(R^2 == .(r)))
+
+scatter.smooth(y=merge$histtemp,x=merge$latitude,lpars = list(lwd = 5,col=alpha(1,0.5)),pch=16,col=alpha(cols[3],0.5),xlab='latitude (degrees)',ylab='mean annual temperature (°C)',bty='l')
+r <- round(cor(y=merge$histtemp,x=merge$latitude),2)
+legend('topright',bty='n',legend=bquote(R^2 == .(r)))
+
+dev.off()
 
 #### plankton data ####
 
