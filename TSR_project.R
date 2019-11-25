@@ -1,5 +1,7 @@
 rm(list=ls())
 
+options(tibble.print_max = 100, scipen = 999)
+
 #libraries
 library(tidyverse)
 library(RColorBrewer)
@@ -9,6 +11,7 @@ library(lme4)
 library(mgcv)
 library(performance)
 library(itsadug)
+library(scales)
 
 #functions
 make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y)))))
@@ -93,25 +96,71 @@ zoo$scl.size <- 0
 zoo$scl.lat <- 0
 for(i in 1:length(taxlist)){
   tmp <- filter(zoo, species == taxlist[i])
-  scl.size <- scale(tmp$mean.size)[,1]
+  scl.size <- scale(tmp$mean.size, scale = F)[,1]
   scl.lat <- scale(tmp$latitude, scale = F)[,1]
   zoo[zoo$species == taxlist[i], 'scl.size'] <- scl.size
   zoo[zoo$species == taxlist[i], 'scl.lat'] <- scl.lat
 }
-
-plot(mean.size~latitude,zoo,type='n')
-for(i in 1:length(taxlist)){
-  tmp <- filter(zoo, species == taxlist[i])
-  if(tmp$division[1] == 'Cladocera'){coll=2}else{coll=3}
-  if(nrow(tmp) > 1){
-    abline(lm(mean.size~latitude,tmp),col=coll)
-  }
-}
-
-
 zoo$species <- as.factor(zoo$species)
 
-library(lmerTest)
+### phytoplankton
+
+phyto <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/Phytoplankton LakePulse 2017_Jelena.xlsx', sheet='Longform')
+
+phyto <- phyto %>% rename(Lake_ID = lake_id, bv = Biomass.mgm3, name = totalbinomial) %>%
+  select(Lake_ID, name, bv) %>%
+  filter(bv != 0) %>% 
+  group_by(Lake_ID, name) %>% 
+  summarize(bv = sum(bv, na.rm=T)) %>%
+  ungroup %>%
+  spread(name, bv) %>%
+  as.data.frame
+
+phyto[is.na(phyto)] <- 0
+
+#### analysis ####
+
+## approach 1: fit a linear regression to each species with 5+ data points, and check distribution of slopes
+
+reg.results <- data.frame('focalsp' = character(0),
+                          'group' = character(0),
+                          'min.lat' = numeric(0),
+                          'max.lat' = numeric(0),
+                          'n' = numeric(0),
+                          'slope' = numeric(0),
+                          'SE' = numeric(0),
+                          'p' = numeric(0),
+                          'r2' = numeric(0), stringsAsFactors = F)
+
+for(i in 1:nlevels(zoo$species)){
+  focalsp <- levels(zoo$species)[i]
+  spdat <- zoo %>% filter(species == focalsp)
+  spdat <- arrange(spdat, latitude)
+  lmmod <- lm(mean.size~latitude,spdat)
+  r2 <- summary(lmmod)$r.squared
+  slope <- coef(lmmod)[2]
+  p <- summary(lmmod)$coefficients[2,4]
+  SE <- summary(lmmod)$coefficients[2,2]
+  n <- nrow(spdat)
+  min.lat <- min(spdat$latitude)
+  max.lat <- max(spdat$latitude)
+  group <- spdat$division[1]
+  results1 <- c(focalsp,group)
+  results2 <- c(min.lat,max.lat,n,slope,SE,p,r2)
+  reg.results[nrow(reg.results)+1,1:2] <- results1
+  reg.results[nrow(reg.results),3:9] <- results2
+}
+
+hist(reg.results$slope, breaks=20)
+#plot à la Dornelas
+reg.results$bubblesize <- rescale(reg.results$n, c(1,4))
+reg.results$bubblecol <- 'gray'
+reg.results$bubblecol[reg.results$p < 0.05 & reg.results$slope < 0] <- 'red'
+reg.results$bubblecol[reg.results$p < 0.05 & reg.results$slope > 0] <- 'blue'
+plot(r2~slope,reg.results,bty='n',pch=16,col=alpha(bubblecol,0.5),cex=bubblesize)
+abline(v=0,lty=2)
+#not very exciting...
+
 mod <- lmer(mean.size ~ latitude + (latitude-1|species) + (1|species), data = zoo)
 # plot(mod)
 # summary(mod)
@@ -119,12 +168,10 @@ mod <- lmer(mean.size ~ latitude + (latitude-1|species) + (1|species), data = zo
 # performance(mod)
 # icc(mod)
 
-#simulate a dataset
-simulated <- simulate(mod, nsim=1000, newdata=zoo, re.form=NA,allow.new.levels=T)
-mean <- apply(simulated, 1, mean)
-
 
 library(randomcoloR)
+
+
 cols2 <- randomColor(n_distinct(zoo$species))
 emptyPlot(xlim = range(zoo$latitude),yaxt='n',xaxt='n',ann=F, ylim=range(zoo$mean.size),bty='l')
 axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
@@ -144,19 +191,39 @@ for(i in 1:nlevels(zoo$species)){
   lmmod <- lm(mean.size~latitude,spdat)
   points(fitted(lmmod)~spdat$latitude,col=alpha(cols2[i],0.5),type='l',lwd=0.8)
 }
-predict(mod,)
-plot_smooth(mod, view="latitude", lwd=3, col=cols[1], rm.ranef=T, se=1.96, rug=F, add=T)
-legend('topright',bty='n',legend=bquote(atop(italic('F') == .(testres[1]),italic('p') == .(testres[2]))))
+# predict(mod,)
+# plot_smooth(mod, view="latitude", lwd=3, col=cols[1], rm.ranef=T, se=1.96, rug=F, add=T)
+# legend('topright',bty='n',legend=bquote(atop(italic('F') == .(testres[1]),italic('p') == .(testres[2]))))
 
+
+emptyPlot(xlim = range(zoo$latitude),yaxt='n',xaxt='n',ann=F, ylim=range(zoo$scl.size),bty='l')
+axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
+axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
+title(xlab='latitude (degrees)')
+title(ylab=expression(body~size~(mm)),line=2.8)
+# for(focalsp in levels(mod$model$species)){
+#   spdat <- mod$model %>% filter(species == focalsp)
+#   spdat <- arrange(spdat, latitude)
+#   points(scl.size~latitude,spdat,col=alpha(1,0.5),type='l')
+# }
+for(i in 1:nlevels(zoo$species)){
+  focalsp <- levels(zoo$species)[i]
+  spdat <- zoo %>% filter(species == focalsp)
+  spdat <- arrange(spdat, latitude)
+  #points(scl.size~latitude,spdat,col=alpha(cols2[i],0.5),type='p',pch=16,cex=0.5)
+  lmmod <- lm(scl.size~latitude,spdat)
+  points(fitted(lmmod)~spdat$latitude,col=alpha(cols2[i],0.5),type='l',lwd=0.8)
+}
 
 
 mod <- bam(mean.size ~ s(latitude, k = 8) + s(latitude, species, bs = 'fs', k = 6), data = zoo,nthreads=2)
+mod <- bam(scl.size ~ s(latitude, k = 8) + s(latitude, species, bs = 'fs', k = 6), data = zoo,nthreads=2)
 summary(mod)
 modsum <- summary(mod, re.test=F)
 testres <- modsum$s.table[c('s(latitude)'),c('F','p-value')]
 testres[1] <- round(testres[1],2)
 testres[2] <- round(testres[2],4)
-if(testres[2] == 0){testres[2] <- 0.0001}
+if(testres[2] < 0.0001){testres[2] <- 0.0001}
 rsq <- round(modsum$r.sq,2)
 
 ylims <- predict(mod,se.fit=T)
@@ -178,25 +245,12 @@ for(i in 1:nlevels(zoo$species)){
   focalsp <- levels(zoo$species)[i]
   spdat <- zoo %>% filter(species == focalsp)
   spdat <- arrange(spdat, latitude)
-  lmmod <- loess(mean.size~latitude,spdat)
+  lmmod <- gam(mean.size~s(latitude, k = 4),data=spdat)
   points(fitted(lmmod)~spdat$latitude,col=alpha(cols2[i],0.5),type='l',lwd=0.8)
 }
-plot_smooth(mod, view="latitude", lwd=3, col=cols[1], rm.ranef=T, se=1.96, rug=F, add=T)
+plot_smooth(mod, view="latitude", lwd=3, col=1, rm.ranef=T, se=1.96, rug=F, add=T)
 legend('topright',bty='n',legend=bquote(atop(italic('F') == .(testres[1]),italic('p') == .(testres[2]))))
 
 
-#phyto
-
-phyto <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/Phytoplankton LakePulse 2017_Jelena.xlsx', sheet='Longform')
-
-phyto <- phyto %>% rename(Lake_ID = lake_id, bv = Biomass.mgm3, name = totalbinomial) %>%
-  select(Lake_ID, name, bv) %>%
-  filter(bv != 0) %>% 
-  group_by(Lake_ID, name) %>% 
-  summarize(bv = sum(bv, na.rm=T)) %>%
-  ungroup %>%
-  spread(name, bv) %>%
-  as.data.frame
-
-phyto[is.na(phyto)] <- 0
+#
 
