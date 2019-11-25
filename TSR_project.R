@@ -4,61 +4,49 @@ rm(list=ls())
 library(tidyverse)
 library(RColorBrewer)
 library(devtools)
+library(readxl)
 
 #functions
 make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y)))))
 '%!in%' <- function(x,y)!('%in%'(x,y))
 source_url("https://raw.githubusercontent.com/VFugere/LakePulse/master/custom_plots.R")
 
-#cols
-cols <- brewer.pal(7, 'Dark2')[1:3] 
-cols2 <- brewer.pal(8, 'Dark2')[c(4,5,6,8)] 
+#### temp data ####
 
-#data
 load('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/basic_data.RData')
+kestrel <- read.csv2('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/2017 not merged/LakePulse2017_kestrel_QC.csv')
+colnames(kestrel)[1] <- 'Lake_ID'
+rbr <- read.csv2('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/2017 not merged/LakePulse2017_RBR_top_bottom_QC.csv')
+colnames(rbr)[1] <- 'Lake_ID'
+alex <- read.csv('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/2017 not merged/Alex_weather_station_data.csv')
+colnames(alex)[1] <- 'Lake_ID'
 
-#
-#zoo Cindy
+kestrel <- kestrel %>% select(Lake_ID,temp) %>% rename(airtemp = temp)
+rbr <- rbr %>% filter (depth == 'Tube lenght') %>% select(Lake_ID,temperature) %>% rename(watertemp = temperature)
+alex <- alex %>% filter(Time >= 1950) %>% group_by(Lake_ID) %>% summarize(histtemp = mean(Mean_Ann_Temp, na.rm = T))
+lat <- basic.data %>% select(Lake_ID, latitude)
+
+merge <- inner_join(rbr,kestrel) %>% inner_join(alex) %>% inner_join(lat)
+#corrgram::corrgram(merge)
+plot(merge[,2:5])
+
+#air temp and water temp correlate well on sampling day. So I can use air temp as proxy for water temp.
+#mean annual air temp since 1950 correlate almost perfectly with latitude. So can use latitude as a proxy for air temp
+#latitude should provide a proxy for water temp for all lakes.
+
+#### plankton data ####
 
 bad.zoo.samples <- c('07-057','17-050')#,'08-205','07-029') # remove these two if anything weird (see email Cindy 30-Sept-2019)
 
-zoo.abund <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2017/all raw data 2017.xlsx', sheet='abundances') %>%
+zoo <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2017/all raw data 2017.xlsx', sheet='raw') %>%
   filter(!(ID_lakepulse %in% bad.zoo.samples)) %>%
-  rename(Lake_ID = ID_lakepulse, abund = '#individuals counted') %>%
-  select(Lake_ID, name, abund)
+  rename(Lake_ID = ID_lakepulse)
+
+
 
 zoo.abund$name <- str_replace(zoo.abund$name, '  ', ' ')
 zoo.abund$name <- str_replace(zoo.abund$name, 'spp', 'sp')
 
-zoo.abund <- zoo.abund %>% 
-  group_by(Lake_ID,name) %>% 
-  summarize(abund = sum(abund, na.rm=T)) %>%
-  ungroup %>%
-  spread(name,abund)
-
-#
-
-zoo.biomass <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2017/all raw data 2017.xlsx', sheet='clean biomass') %>%
-  filter(!(ID_lakepulse %in% bad.zoo.samples)) %>%
-  rename(Lake_ID = ID_lakepulse, biomass = 'species biomass (µg d.w./L)') %>%
-  select(Lake_ID, name, biomass)
-
-zoo.biomass$name <- str_replace(zoo.biomass$name, '  ', ' ')
-zoo.biomass$name <- str_replace(zoo.biomass$name, 'spp', 'sp')
-
-zoo.biomass <- spread(zoo.biomass,name, biomass) #ug DM L^-1, copepodite not grouped with adults
-
-#
-
-zoo.biomass.grouped <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2017/ALLfinal_grouping2017.csv', stringsAsFactors = F) %>%
-  filter(!(Lake_ID %in% bad.zoo.samples)) %>%
-  mutate_at(vars(Ergasilus.spp.:Simocephalus..spp.), as.numeric)
-
-colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), '\\.', ' ')
-colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), '\\.spp\\.', 'sp\\.')
-colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), 'spp\\.', 'sp\\.')
-colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), 'Daphnia galeata\\.mendotae', 'Daphnia galeata mendotae')
-colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), ' \\.', ' ')
 
 #phyto
 
