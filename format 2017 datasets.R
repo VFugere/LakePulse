@@ -87,8 +87,16 @@ colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), ' \\
 
 #phyto
 
-phyto <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/Phytoplankton LakePulse 2017_Jelena.xlsx', sheet='Longform')
+phyto <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/phyto2017_clean.xlsx', sheet='Longform')
 
+# phyto traits and taxonomy
+phytoT <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/phyto2017_clean.xlsx', sheet='taxonomy_clean')
+phytoT$group <- tolower(phytoT$group)
+
+#use clean taxonomy sheet to replace erroneous species name in community matrix
+phyto$totalbinomial <- phytoT$clean.name[match(phyto$totalbinomial,phytoT$totalbinomial)]
+
+#format into community matrix
 phyto <- phyto %>% rename(Lake_ID = lake_id, bv = Biomass.mgm3, name = totalbinomial) %>%
   select(Lake_ID, name, bv) %>%
   filter(bv != 0) %>% 
@@ -102,10 +110,6 @@ phyto[is.na(phyto)] <- 0
 
 # colnames(phyto) <- str_replace(colnames(phyto), '\\(', '')
 # colnames(phyto) <- str_replace(colnames(phyto), '\\)', '')
-
-# phyto traits and taxonomy
-
-phytoT <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/Phytoplankton LakePulse 2017_Bruno.xlsx', sheet='Unique taxa entries')
 
 # ASV data Susanne
 
