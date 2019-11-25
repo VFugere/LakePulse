@@ -5,11 +5,16 @@ library(tidyverse)
 library(RColorBrewer)
 library(devtools)
 library(readxl)
+library(lme4)
+library(mgcv)
+library(performance)
+library(itsadug)
 
 #functions
 make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y)))))
 '%!in%' <- function(x,y)!('%in%'(x,y))
 source_url("https://raw.githubusercontent.com/VFugere/LakePulse/master/custom_plots.R")
+mean.nona <- function(x){mean(x, na.rm=T)}
 
 cols <- brewer.pal(3, 'Dark2')
 
@@ -59,10 +64,125 @@ zoo <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankto
   filter(!(ID_lakepulse %in% bad.zoo.samples)) %>%
   rename(Lake_ID = ID_lakepulse)
 
+#calculate mean body size, excluding 0s and NAs
+sizes <- select(zoo, D1:D10)
+sizes[sizes == 0] <- NA
+sizes$mean <- apply(sizes, MARGIN = 1, FUN = mean.nona)
+zoo$mean.size <- sizes$mean
+rm(sizes)
+
+#removing all taxa that aren't id'd to species
+zoo$species <- paste(zoo$genus,zoo$species,sep='_')
+distinct(zoo, species) %>% pull(species) -> taxlist
+to.rm <- taxlist[str_detect(taxlist, '.spp')]
+to.rm <- c(to.rm, taxlist[str_detect(taxlist, 'copepodid')])
+to.rm <- c(to.rm, taxlist[str_detect(taxlist, '_NA')])
+to.rm <- c(to.rm, c('Alona_sp.','Skistodiaptomus_sp.','immature_cladoceran','Macrothrix_sp.','Acanthocyclops_sp.'))
+
+#clean up, remove species with a single site, and add latitude
+zoo <- filter(zoo, species %!in% to.rm)
+zoo$division[zoo$species == 'Leptodora_kindtii'] <- 'Cladocera'
+zoo <- zoo %>% select(Lake_ID,species,division,mean.size) %>% drop_na %>% filter(is.numeric(mean.size))
+zoo <- inner_join(zoo, lat, by = 'Lake_ID')
+zoo <- zoo %>% add_count(species)
+zoo <- zoo %>% filter(n >= 5)
+
+#add scaled variables within species
+taxlist <- zoo %>% distinct(species) %>% pull(species)
+zoo$scl.size <- 0
+zoo$scl.lat <- 0
+for(i in 1:length(taxlist)){
+  tmp <- filter(zoo, species == taxlist[i])
+  scl.size <- scale(tmp$mean.size)[,1]
+  scl.lat <- scale(tmp$latitude, scale = F)[,1]
+  zoo[zoo$species == taxlist[i], 'scl.size'] <- scl.size
+  zoo[zoo$species == taxlist[i], 'scl.lat'] <- scl.lat
+}
+
+plot(mean.size~latitude,zoo,type='n')
+for(i in 1:length(taxlist)){
+  tmp <- filter(zoo, species == taxlist[i])
+  if(tmp$division[1] == 'Cladocera'){coll=2}else{coll=3}
+  if(nrow(tmp) > 1){
+    abline(lm(mean.size~latitude,tmp),col=coll)
+  }
+}
 
 
-zoo.abund$name <- str_replace(zoo.abund$name, '  ', ' ')
-zoo.abund$name <- str_replace(zoo.abund$name, 'spp', 'sp')
+zoo$species <- as.factor(zoo$species)
+
+library(lmerTest)
+mod <- lmer(mean.size ~ latitude + (latitude-1|species) + (1|species), data = zoo)
+# plot(mod)
+# summary(mod)
+# hist(resid(mod))
+# performance(mod)
+# icc(mod)
+
+#simulate a dataset
+simulated <- simulate(mod, nsim=1000, newdata=zoo, re.form=NA,allow.new.levels=T)
+mean <- apply(simulated, 1, mean)
+
+
+library(randomcoloR)
+cols2 <- randomColor(n_distinct(zoo$species))
+emptyPlot(xlim = range(zoo$latitude),yaxt='n',xaxt='n',ann=F, ylim=range(zoo$mean.size),bty='l')
+axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
+axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
+title(xlab='latitude (degrees)')
+title(ylab=expression(body~size~(mm)),line=2.8)
+# for(focalsp in levels(mod$model$species)){
+#   spdat <- mod$model %>% filter(species == focalsp)
+#   spdat <- arrange(spdat, latitude)
+#   points(mean.size~latitude,spdat,col=alpha(1,0.5),type='l')
+# }
+for(i in 1:nlevels(zoo$species)){
+  focalsp <- levels(zoo$species)[i]
+  spdat <- zoo %>% filter(species == focalsp)
+  spdat <- arrange(spdat, latitude)
+  #points(mean.size~latitude,spdat,col=alpha(cols2[i],0.5),type='p',pch=16,cex=0.5)
+  lmmod <- lm(mean.size~latitude,spdat)
+  points(fitted(lmmod)~spdat$latitude,col=alpha(cols2[i],0.5),type='l',lwd=0.8)
+}
+predict(mod,)
+plot_smooth(mod, view="latitude", lwd=3, col=cols[1], rm.ranef=T, se=1.96, rug=F, add=T)
+legend('topright',bty='n',legend=bquote(atop(italic('F') == .(testres[1]),italic('p') == .(testres[2]))))
+
+
+
+mod <- bam(mean.size ~ s(latitude, k = 8) + s(latitude, species, bs = 'fs', k = 6), data = zoo,nthreads=2)
+summary(mod)
+modsum <- summary(mod, re.test=F)
+testres <- modsum$s.table[c('s(latitude)'),c('F','p-value')]
+testres[1] <- round(testres[1],2)
+testres[2] <- round(testres[2],4)
+if(testres[2] == 0){testres[2] <- 0.0001}
+rsq <- round(modsum$r.sq,2)
+
+ylims <- predict(mod,se.fit=T)
+ylims <- range(c(ylims$fit+1.96*ylims$se.fit,ylims$fit-1.96*ylims$se.fit))
+
+emptyPlot(xlim = range(zoo$latitude),yaxt='n',xaxt='n',ann=F, ylim=ylims,bty='l')
+axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
+axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
+title(xlab='latitude (degrees)')
+title(ylab=expression(body~size~(mm)),line=2.8)
+# for(focalsp in levels(mod$model$species)){
+#   spdat <- mod$model %>% filter(species == focalsp)
+#   xs <- seq(min(spdat$latitude),max(spdat$latitude),by=0.01)
+#   conditions <- list(latitude=xs, species=focalsp)
+#   ys <- get_predictions(mod, cond = conditions, se=F, print.summary = F, rm.ranef=F) 
+#   points(fit~latitude,ys,col=alpha(1,0.5),type='l')
+# }
+for(i in 1:nlevels(zoo$species)){
+  focalsp <- levels(zoo$species)[i]
+  spdat <- zoo %>% filter(species == focalsp)
+  spdat <- arrange(spdat, latitude)
+  lmmod <- loess(mean.size~latitude,spdat)
+  points(fitted(lmmod)~spdat$latitude,col=alpha(cols2[i],0.5),type='l',lwd=0.8)
+}
+plot_smooth(mod, view="latitude", lwd=3, col=cols[1], rm.ranef=T, se=1.96, rug=F, add=T)
+legend('topright',bty='n',legend=bquote(atop(italic('F') == .(testres[1]),italic('p') == .(testres[2]))))
 
 
 #phyto
