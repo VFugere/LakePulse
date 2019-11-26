@@ -120,10 +120,18 @@ phyto <- select(phyto, Lake_ID, species, group, animal, size.um)
 ### merge both dataframes and format
 
 data <- bind_rows(zoo,phyto) %>% arrange(Lake_ID, size.um)
-
 data <- inner_join(data, lat, by = 'Lake_ID')
 data <- left_join(data, rbr, by = 'Lake_ID')
 
+## which variable will be used in analysis?
+data$x <- data$latitude
+xvarlab <- 'latitude (degrees)'
+xvarlab2 <- 'latitudinal range (degrees)'
+# data$x <- data$watertemp
+# xvarlab <- 'water temperature (°C)'
+# xvarlab2 <- 'thermal range (°C)'
+
+data <- data %>% filter(!is.na(x))
 data <- data %>% add_count(species)
 data <- data %>% filter(n >= 5)
 
@@ -144,12 +152,6 @@ data$scl.size[!is.finite(data$scl.size)] <- NA
 
 #### analysis ####
 
-data$x <- data$latitude
-xvarlab <- 'latitude (degrees)'
-
-data$x <- data$watertemp
-xvarlab <- 'water temperature'
-
 ## approach 1: fit a linear regression to each species with 5+ data points, and check distribution of slopes
 
 reg.results <- data.frame('focalsp' = character(0),
@@ -160,13 +162,17 @@ reg.results <- data.frame('focalsp' = character(0),
                           'slope' = numeric(0),
                           'SE' = numeric(0),
                           'p' = numeric(0),
-                          'r2' = numeric(0), stringsAsFactors = F)
+                          'r2' = numeric(0), 
+                          'mean.size' =numeric(0),
+                          stringsAsFactors = F)
 
 for(i in 1:nlevels(data$species)){
   focalsp <- levels(data$species)[i]
   spdat <- data %>% filter(species == focalsp)
-  spdat <- arrange(spdat, x)
-  lmmod <- lm(size.um~x,spdat)
+  spdat <- spdat %>% drop_na(scl.size)
+  if(nrow(spdat) >= 5){
+  #lmmod <- lm(size.um~x,spdat)
+  lmmod <- lm(scl.size~x,spdat)
   r2 <- summary(lmmod)$r.squared
   slope <- coef(lmmod)[2]
   p <- summary(lmmod)$coefficients[2,4]
@@ -175,39 +181,103 @@ for(i in 1:nlevels(data$species)){
   min.lat <- min(spdat$x)
   max.lat <- max(spdat$x)
   group <- spdat$group[1]
+  mean.size <- mean(spdat$size.um)
   results1 <- c(focalsp,group)
-  results2 <- c(min.lat,max.lat,n,slope,SE,p,r2)
+  results2 <- c(min.lat,max.lat,n,slope,SE,p,r2,mean.size)
   reg.results[nrow(reg.results)+1,1:2] <- results1
-  reg.results[nrow(reg.results),3:9] <- results2
+  reg.results[nrow(reg.results),3:10] <- results2
+  }
 }
 
-hist(reg.results$slope, breaks=20)
-#plot à la Dornelas
+#reg.results <- filter(reg.results, abs(slope) < 100)
+reg.results$xrange <- reg.results$max.lat-reg.results$min.lat
+reg.results <- reg.results %>% filter(xrange > 2)
+
 reg.results$bubblesize <- rescale(reg.results$n, c(1,4))
 reg.results$bubblecol <- 'gray'
 reg.results$bubblecol[reg.results$p < 0.05 & reg.results$slope < 0] <- 'red'
 reg.results$bubblecol[reg.results$p < 0.05 & reg.results$slope > 0] <- 'blue'
-plot(r2~slope,reg.results,bty='n',pch=16,col=alpha(bubblecol,0.5),cex=bubblesize,xlim=c(-75,75))
+
+hist(reg.results$slope, breaks=50)
+
+#plot à la Dornelas
+plot(r2~slope,reg.results,bty='n',pch=16,col=alpha(bubblecol,0.5),cex=bubblesize)
 abline(v=0,lty=2)
 #not very exciting...
 
-mod <- lmer(log10(size.um) ~ x + (x-1|species) + (1|species), data = data)
+pdf('~/Desktop/results.pdf',width=16,height=5,pointsize=12)
+layout(cbind(1,2,3),widths=c(0.4,0.3,0.3))
+par(cex=1)
+  
+emptyPlot(xlim = range(data$x),yaxt='n',xaxt='n',ann=F, ylim=range(data$size.um),bty='l',log='y')
+axis(2,cex.axis=1,lwd=0,lwd.ticks=1,at=c(1,10,100,1000))
+axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
+title(xlab=xvarlab)
+title(ylab=expression(mean~body~size~(µm)),line=2.8)
+for(i in 1:nlevels(data$species)){
+  focalsp <- levels(data$species)[i]
+  spdat <- data %>% filter(species == focalsp)
+  spdat <- filter(spdat, !is.na(scl.size))
+  if(nrow(spdat) >= 5){
+    lmmod <- lm(scl.size~x,spdat)
+    lncol <- 'gray'
+    if(summary(lmmod)$coefficients[2,4] < 0.05){
+      if(summary(lmmod)$coefficients[2,1] > 0){lncol <- 'blue'}else{
+        lncol <- 'red'}
+    }
+    lmmod <- lm(size.um~x,spdat)
+    points(fitted(lmmod)~spdat$x,col=alpha(lncol,0.5),type='l',lwd=1)
+  }
+}
+
+plot(slope~xrange,reg.results,bty='n',pch=16,col=alpha(bubblecol,0.5),cex=bubblesize,bty='l',yaxt='n',xaxt='n',ann=F)
+axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
+axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
+title(xlab=xvarlab2,line=2.8)
+title(ylab=standardized~slope~(beta),line=2.8)
+abline(h=0,lty=3)
+
+plot(slope~mean.size,reg.results,bty='n',pch=16,col=alpha(bubblecol,0.5),cex=bubblesize,bty='l',log='x',yaxt='n',xaxt='n',ann=F)
+axis(1,cex.axis=1,lwd=0,lwd.ticks=1,at=c(1,10,100,1000))
+axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
+title(ylab=standardized~slope~(beta),line=2.8)
+title(xlab='mean body size (µm)',line=2.8)
+abline(h=0,lty=3)
+
+dev.off()
+
+
+
+
+mod <- lmer(log(size.um) ~ x + (x-1|species) + (1|species), data = data)
 plot(mod)
 summary(mod)
+confint(mod)
 hist(resid(mod))
 performance(mod)
 icc(mod)
 
+library(MCMCglmm)
+
+#MCMCglmm parameters
+a <- 1000
+priorz <- list(R = list(V = diag(1), nu = 0.002), G = list(G1 = list(V = diag(1), nu = 1, alpha.mu = 0, alpha.V = diag(1)*a), G2 = list(V = diag(1), nu = 1, alpha.mu = 0, alpha.V = diag(1)*a)))
+prior.s <- list(R=list(V=diag(4),n=0.002),G=list(G1=list(V=diag(1),n=0.002),G2=list(V=diag(1),n=0.002)))
+m <- reg.results$SE^2 #variance of coefficients
+mod1 <- MCMCglmm(slope ~ 1, data=reg.results, mev=m, prior=prior.s, random=~ system + traitID, rcov=~idh(conditions):units, nitt=103000, verbose=F)
+
+MCMCglmm()
 
 library(randomcoloR)
 
 
-cols2 <- randomColor(n_distinct(data$species))
+#cols2 <- randomColor(n_distinct(data$species))
+
 emptyPlot(xlim = range(data$x),yaxt='n',xaxt='n',ann=F, ylim=range(data$size.um),bty='l',log='y')
-axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
+axis(2,cex.axis=1,lwd=0,lwd.ticks=1,at=c(1,10,100,1000))
 axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
 title(xlab=xvarlab)
-title(ylab=expression(body~size~(mm)),line=2.8)
+title(ylab=expression(mean~body~size~(µm)),line=2.8)
 # for(focalsp in levels(mod$model$species)){
 #   spdat <- mod$model %>% filter(species == focalsp)
 #   spdat <- arrange(spdat, x)
@@ -218,8 +288,15 @@ for(i in 1:nlevels(data$species)){
   spdat <- data %>% filter(species == focalsp)
   spdat <- arrange(spdat, x)
   #points(size.um~x,spdat,col=alpha(cols2[i],0.5),type='p',pch=16,cex=0.5)
-  lmmod <- lm(size.um~x,spdat)
-  points(fitted(lmmod)~spdat$x,col=alpha(cols2[i],0.5),type='l',lwd=0.8)
+  if(nrow(spdat) >= 5){
+    lmmod <- lm(size.um~x,spdat)
+    lncol <- 'gray'
+    if(summary(lmmod)$coefficients[2,4] < 0.05){
+      if(summary(lmmod)$coefficients[2,1] > 0){lncol <- 'blue'}else{
+        lncol <- 'red'}
+    }
+    points(fitted(lmmod)~spdat$x,col=alpha(lncol,0.5),type='l',lwd=1)
+  }
 }
 # predict(mod,)
 # plot_smooth(mod, view="x", lwd=3, col=cols[1], rm.ranef=T, se=1.96, rug=F, add=T)
