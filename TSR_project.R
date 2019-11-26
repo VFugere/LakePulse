@@ -86,39 +86,69 @@ to.rm <- c(to.rm, c('Alona_sp.','Skistodiaptomus_sp.','immature_cladoceran','Mac
 zoo <- filter(zoo, species %!in% to.rm)
 zoo$division[zoo$species == 'Leptodora_kindtii'] <- 'Cladocera'
 zoo <- zoo %>% select(Lake_ID,species,division,mean.size) %>% drop_na %>% filter(is.numeric(mean.size))
-zoo <- inner_join(zoo, lat, by = 'Lake_ID')
-zoo <- zoo %>% add_count(species)
-zoo <- zoo %>% filter(n >= 5)
-
-#add scaled variables within species
-taxlist <- zoo %>% distinct(species) %>% pull(species)
-zoo$scl.size <- 0
-zoo$scl.lat <- 0
-for(i in 1:length(taxlist)){
-  tmp <- filter(zoo, species == taxlist[i])
-  scl.size <- scale(tmp$mean.size, scale = F)[,1]
-  scl.lat <- scale(tmp$latitude, scale = F)[,1]
-  zoo[zoo$species == taxlist[i], 'scl.size'] <- scl.size
-  zoo[zoo$species == taxlist[i], 'scl.lat'] <- scl.lat
-}
-zoo$species <- as.factor(zoo$species)
+zoo <- rename(zoo, group = division)
+zoo$animal <- 'yes'
+zoo$mean.size <- zoo$mean.size*1000
+zoo <- rename(zoo, size.um = mean.size)
+zoo <- zoo %>% select(Lake_ID:group,animal,size.um)
+zoo$group <- tolower(zoo$group)
 
 ### phytoplankton
 
-phyto <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/Phytoplankton LakePulse 2017_Jelena.xlsx', sheet='Longform')
+phyto <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/phyto2017_clean.xlsx', sheet='Longform')
+phytoT <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/phyto2017_clean.xlsx', sheet='taxonomy_clean')
+phytoT$group <- tolower(phytoT$group)
 
-phyto <- phyto %>% rename(Lake_ID = lake_id, bv = Biomass.mgm3, name = totalbinomial) %>%
-  select(Lake_ID, name, bv) %>%
-  filter(bv != 0) %>% 
-  group_by(Lake_ID, name) %>% 
-  summarize(bv = sum(bv, na.rm=T)) %>%
-  ungroup %>%
-  spread(name, bv) %>%
-  as.data.frame
+#use clean taxonomy sheet to replace erroneous species name in community matrix
+phyto$totalbinomial <- phytoT$clean.name[match(phyto$totalbinomial,phytoT$totalbinomial)]
 
-phyto[is.na(phyto)] <- 0
+colnames(phyto) <- tolower(colnames(phyto))
+
+phyto <- phyto %>% rename(Lake_ID = lake_id, size.um = gald.µm, name = totalbinomial) %>%
+  select(Lake_ID, name, size.um) %>%
+  drop_na
+
+phyto <- left_join(phyto, phytoT, by = c('name' = 'clean.name'))
+phyto <- filter(phyto, !is.na(species))
+phyto <- phyto %>% group_by(Lake_ID, name) %>% summarize(size.um = mean(size.um)) %>% ungroup
+phyto <- phytoT %>% select(group, clean.name) %>% right_join(phyto, by = c('clean.name' = 'name'))
+phyto <- rename(phyto, species = clean.name)
+phyto$animal <- 'no'
+phyto$species <- str_replace(phyto$species, ' ', '_')
+phyto <- select(phyto, Lake_ID, species, group, animal, size.um)
+
+### merge both dataframes and format
+
+data <- bind_rows(zoo,phyto) %>% arrange(Lake_ID, size.um)
+
+data <- inner_join(data, lat, by = 'Lake_ID')
+data <- left_join(data, rbr, by = 'Lake_ID')
+
+data <- data %>% add_count(species)
+data <- data %>% filter(n >= 5)
+
+#add scaled variables within species
+taxlist <- data %>% distinct(species) %>% pull(species)
+data$scl.size <- 0
+data$scl.lat <- 0
+for(i in 1:length(taxlist)){
+  tmp <- filter(data, species == taxlist[i])
+  scl.size <- scale(tmp$size.um, scale = T)[,1]
+  scl.lat <- scale(tmp$latitude, scale = F)[,1]
+  data[data$species == taxlist[i], 'scl.size'] <- scl.size
+  data[data$species == taxlist[i], 'scl.lat'] <- scl.lat
+}
+
+data$species <- as.factor(data$species)
+data$scl.size[!is.finite(data$scl.size)] <- NA
 
 #### analysis ####
+
+data$x <- data$latitude
+xvarlab <- 'latitude (degrees)'
+
+data$x <- data$watertemp
+xvarlab <- 'water temperature'
 
 ## approach 1: fit a linear regression to each species with 5+ data points, and check distribution of slopes
 
@@ -132,19 +162,19 @@ reg.results <- data.frame('focalsp' = character(0),
                           'p' = numeric(0),
                           'r2' = numeric(0), stringsAsFactors = F)
 
-for(i in 1:nlevels(zoo$species)){
-  focalsp <- levels(zoo$species)[i]
-  spdat <- zoo %>% filter(species == focalsp)
-  spdat <- arrange(spdat, latitude)
-  lmmod <- lm(mean.size~latitude,spdat)
+for(i in 1:nlevels(data$species)){
+  focalsp <- levels(data$species)[i]
+  spdat <- data %>% filter(species == focalsp)
+  spdat <- arrange(spdat, x)
+  lmmod <- lm(size.um~x,spdat)
   r2 <- summary(lmmod)$r.squared
   slope <- coef(lmmod)[2]
   p <- summary(lmmod)$coefficients[2,4]
   SE <- summary(lmmod)$coefficients[2,2]
   n <- nrow(spdat)
-  min.lat <- min(spdat$latitude)
-  max.lat <- max(spdat$latitude)
-  group <- spdat$division[1]
+  min.lat <- min(spdat$x)
+  max.lat <- max(spdat$x)
+  group <- spdat$group[1]
   results1 <- c(focalsp,group)
   results2 <- c(min.lat,max.lat,n,slope,SE,p,r2)
   reg.results[nrow(reg.results)+1,1:2] <- results1
@@ -157,70 +187,72 @@ reg.results$bubblesize <- rescale(reg.results$n, c(1,4))
 reg.results$bubblecol <- 'gray'
 reg.results$bubblecol[reg.results$p < 0.05 & reg.results$slope < 0] <- 'red'
 reg.results$bubblecol[reg.results$p < 0.05 & reg.results$slope > 0] <- 'blue'
-plot(r2~slope,reg.results,bty='n',pch=16,col=alpha(bubblecol,0.5),cex=bubblesize)
+plot(r2~slope,reg.results,bty='n',pch=16,col=alpha(bubblecol,0.5),cex=bubblesize,xlim=c(-75,75))
 abline(v=0,lty=2)
 #not very exciting...
 
-mod <- lmer(mean.size ~ latitude + (latitude-1|species) + (1|species), data = zoo)
-# plot(mod)
-# summary(mod)
-# hist(resid(mod))
-# performance(mod)
-# icc(mod)
+mod <- lmer(log10(size.um) ~ x + (x-1|species) + (1|species), data = data)
+plot(mod)
+summary(mod)
+hist(resid(mod))
+performance(mod)
+icc(mod)
 
 
 library(randomcoloR)
 
 
-cols2 <- randomColor(n_distinct(zoo$species))
-emptyPlot(xlim = range(zoo$latitude),yaxt='n',xaxt='n',ann=F, ylim=range(zoo$mean.size),bty='l')
+cols2 <- randomColor(n_distinct(data$species))
+emptyPlot(xlim = range(data$x),yaxt='n',xaxt='n',ann=F, ylim=range(data$size.um),bty='l',log='y')
 axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
 axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
-title(xlab='latitude (degrees)')
+title(xlab=xvarlab)
 title(ylab=expression(body~size~(mm)),line=2.8)
 # for(focalsp in levels(mod$model$species)){
 #   spdat <- mod$model %>% filter(species == focalsp)
-#   spdat <- arrange(spdat, latitude)
-#   points(mean.size~latitude,spdat,col=alpha(1,0.5),type='l')
+#   spdat <- arrange(spdat, x)
+#   points(size.um~x,spdat,col=alpha(1,0.5),type='l')
 # }
-for(i in 1:nlevels(zoo$species)){
-  focalsp <- levels(zoo$species)[i]
-  spdat <- zoo %>% filter(species == focalsp)
-  spdat <- arrange(spdat, latitude)
-  #points(mean.size~latitude,spdat,col=alpha(cols2[i],0.5),type='p',pch=16,cex=0.5)
-  lmmod <- lm(mean.size~latitude,spdat)
-  points(fitted(lmmod)~spdat$latitude,col=alpha(cols2[i],0.5),type='l',lwd=0.8)
+for(i in 1:nlevels(data$species)){
+  focalsp <- levels(data$species)[i]
+  spdat <- data %>% filter(species == focalsp)
+  spdat <- arrange(spdat, x)
+  #points(size.um~x,spdat,col=alpha(cols2[i],0.5),type='p',pch=16,cex=0.5)
+  lmmod <- lm(size.um~x,spdat)
+  points(fitted(lmmod)~spdat$x,col=alpha(cols2[i],0.5),type='l',lwd=0.8)
 }
 # predict(mod,)
-# plot_smooth(mod, view="latitude", lwd=3, col=cols[1], rm.ranef=T, se=1.96, rug=F, add=T)
+# plot_smooth(mod, view="x", lwd=3, col=cols[1], rm.ranef=T, se=1.96, rug=F, add=T)
 # legend('topright',bty='n',legend=bquote(atop(italic('F') == .(testres[1]),italic('p') == .(testres[2]))))
 
 
-emptyPlot(xlim = range(zoo$latitude),yaxt='n',xaxt='n',ann=F, ylim=range(zoo$scl.size),bty='l')
+emptyPlot(xlim = range(data$x),yaxt='n',xaxt='n',ann=F, ylim=range(data$scl.size, na.rm = T),bty='l')
 axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
 axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
-title(xlab='latitude (degrees)')
+title(xlab=xvarlab)
 title(ylab=expression(body~size~(mm)),line=2.8)
 # for(focalsp in levels(mod$model$species)){
 #   spdat <- mod$model %>% filter(species == focalsp)
-#   spdat <- arrange(spdat, latitude)
-#   points(scl.size~latitude,spdat,col=alpha(1,0.5),type='l')
+#   spdat <- arrange(spdat, x)
+#   points(scl.size~x,spdat,col=alpha(1,0.5),type='l')
 # }
-for(i in 1:nlevels(zoo$species)){
-  focalsp <- levels(zoo$species)[i]
-  spdat <- zoo %>% filter(species == focalsp)
-  spdat <- arrange(spdat, latitude)
-  #points(scl.size~latitude,spdat,col=alpha(cols2[i],0.5),type='p',pch=16,cex=0.5)
-  lmmod <- lm(scl.size~latitude,spdat)
-  points(fitted(lmmod)~spdat$latitude,col=alpha(cols2[i],0.5),type='l',lwd=0.8)
+for(i in 1:nlevels(data$species)){
+  focalsp <- levels(data$species)[i]
+  spdat <- data %>% filter(species == focalsp)
+  spdat <- arrange(spdat, x)
+  #points(scl.size~x,spdat,col=alpha(cols2[i],0.5),type='p',pch=16,cex=0.5)
+  if(sum(is.na(spdat$scl.size))<1){
+  lmmod <- lm(scl.size~x,spdat)
+  points(fitted(lmmod)~spdat$x,col=alpha(cols2[i],0.5),type='l',lwd=0.8)
+  }
 }
 
 
-mod <- bam(mean.size ~ s(latitude, k = 8) + s(latitude, species, bs = 'fs', k = 6), data = zoo,nthreads=2)
-mod <- bam(scl.size ~ s(latitude, k = 8) + s(latitude, species, bs = 'fs', k = 6), data = zoo,nthreads=2)
+mod <- bam(size.um ~ s(x, k = 8) + s(x, species, bs = 'fs', k = 6), data = data,nthreads=2)
+mod <- bam(scl.size ~ s(x, k = 8) + s(x, species, bs = 'fs', k = 6), data = data,nthreads=2)
 summary(mod)
 modsum <- summary(mod, re.test=F)
-testres <- modsum$s.table[c('s(latitude)'),c('F','p-value')]
+testres <- modsum$s.table[c('s(x)'),c('F','p-value')]
 testres[1] <- round(testres[1],2)
 testres[2] <- round(testres[2],4)
 if(testres[2] < 0.0001){testres[2] <- 0.0001}
@@ -228,27 +260,28 @@ rsq <- round(modsum$r.sq,2)
 
 ylims <- predict(mod,se.fit=T)
 ylims <- range(c(ylims$fit+1.96*ylims$se.fit,ylims$fit-1.96*ylims$se.fit))
+ylims <- c(1,ylims[2])
 
-emptyPlot(xlim = range(zoo$latitude),yaxt='n',xaxt='n',ann=F, ylim=ylims,bty='l')
+emptyPlot(xlim = range(data$x),yaxt='n',xaxt='n',ann=F, ylim=ylims,bty='l',log='y')
 axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
 axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
-title(xlab='latitude (degrees)')
-title(ylab=expression(body~size~(mm)),line=2.8)
+title(xlab=xvarlab)
+title(ylab=expression(body~size~(µm)),line=2.8)
 # for(focalsp in levels(mod$model$species)){
 #   spdat <- mod$model %>% filter(species == focalsp)
-#   xs <- seq(min(spdat$latitude),max(spdat$latitude),by=0.01)
-#   conditions <- list(latitude=xs, species=focalsp)
+#   xs <- seq(min(spdat$x),max(spdat$x),by=0.01)
+#   conditions <- list(x=xs, species=focalsp)
 #   ys <- get_predictions(mod, cond = conditions, se=F, print.summary = F, rm.ranef=F) 
-#   points(fit~latitude,ys,col=alpha(1,0.5),type='l')
+#   points(fit~x,ys,col=alpha(1,0.5),type='l')
 # }
-for(i in 1:nlevels(zoo$species)){
-  focalsp <- levels(zoo$species)[i]
-  spdat <- zoo %>% filter(species == focalsp)
-  spdat <- arrange(spdat, latitude)
-  lmmod <- gam(mean.size~s(latitude, k = 4),data=spdat)
-  points(fitted(lmmod)~spdat$latitude,col=alpha(cols2[i],0.5),type='l',lwd=0.8)
+for(i in 1:nlevels(data$species)){
+  focalsp <- levels(data$species)[i]
+  spdat <- data %>% filter(species == focalsp)
+  spdat <- arrange(spdat, x)
+  lmmod <- gam(size.um~s(x, k = 4),data=spdat)
+  points(fitted(lmmod)~spdat$x,col=alpha(cols2[i],0.5),type='l',lwd=0.8)
 }
-plot_smooth(mod, view="latitude", lwd=3, col=1, rm.ranef=T, se=1.96, rug=F, add=T)
+plot_smooth(mod, view="x", lwd=3, col=1, rm.ranef=T, se=1.96, rug=F, add=T)
 legend('topright',bty='n',legend=bquote(atop(italic('F') == .(testres[1]),italic('p') == .(testres[2]))))
 
 
