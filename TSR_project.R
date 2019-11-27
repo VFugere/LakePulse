@@ -84,8 +84,8 @@ to.rm <- c(to.rm, c('Alona_sp.','Skistodiaptomus_sp.','immature_cladoceran','Mac
 zoo <- filter(zoo, species %!in% to.rm)
 zoo$division[zoo$species == 'Leptodora_kindtii'] <- 'Cladocera'
 
-# #alternative: utiliser mean biomass instead of mean length. This is already calculated in column 'biomass factor'
-# zoo$mean.size <- zoo$`biomass factor (µg/ind)`
+#alternative: utiliser mean biomass instead of mean length. This is already calculated in column 'biomass factor'
+zoo$mean.size <- zoo$`biomass factor (µg/ind)`
 
 #clean up, remove species with a single site, and add latitude
 zoo <- zoo %>% select(Lake_ID,species,division,mean.size) %>% drop_na %>% filter(is.numeric(mean.size))
@@ -106,15 +106,21 @@ phyto$totalbinomial <- phytoT$clean.name[match(phyto$totalbinomial,phytoT$totalb
 
 colnames(phyto) <- tolower(colnames(phyto))
 
-phyto <- phyto %>% rename(Lake_ID = lake_id, size.um = gald.µm, name = totalbinomial) %>%
-  select(Lake_ID, name, size.um) %>%
-  drop_na
-
-# #alternative: use individual cell mass instead of gald length
-# phyto$mean.cell.mass <- with(phyto, (biomass.mgm3/density.orgl)*1000)
-# phyto <- phyto %>% rename(Lake_ID = lake_id, size.um = mean.cell.mass, name = totalbinomial) %>%
+# phyto <- phyto %>% rename(Lake_ID = lake_id, size.um = gald.µm, name = totalbinomial) %>%
 #   select(Lake_ID, name, size.um) %>%
 #   drop_na
+
+# #alternative: use individual cell mass instead of gald length
+phyto$mg.per.ml <- phyto$biomass.mgm3/1000000
+phyto$bv.um3.per.ml <- phyto$mg.per.ml * 1000000000 #same bv measure as as NLA
+phyto$cells.per.ml <- phyto$density.orgl / 1000 # same density measure as NLA
+phyto$um3.per.cell <- phyto$bv.um3.per.ml/phyto$cells.per.ml
+phyto$g.per.cell <- phyto$um3.per.cell * 0.000000000001
+phyto$ug.per.cell <- phyto$g.per.cell * 1000000
+
+phyto <- phyto %>% rename(Lake_ID = lake_id, size.um = ug.per.cell, name = totalbinomial) %>%
+  select(Lake_ID, name, size.um) %>%
+  drop_na
 
 phyto <- left_join(phyto, phytoT, by = c('name' = 'clean.name'))
 phyto <- filter(phyto, !is.na(species))
@@ -132,12 +138,12 @@ data <- inner_join(data, lat, by = 'Lake_ID')
 data <- left_join(data, rbr, by = 'Lake_ID')
 
 ## which variable will be used in analysis?
-data$x <- data$latitude
-xvarlab <- 'latitude (degrees)'
-xvarlab2 <- 'latitudinal range (degrees)'
-# data$x <- data$watertemp
-# xvarlab <- 'water temperature (°C)'
-# xvarlab2 <- 'thermal range (°C)'
+# data$x <- data$latitude
+# xvarlab <- 'latitude (degrees)'
+# xvarlab2 <- 'latitudinal range (degrees)'
+data$x <- data$watertemp
+xvarlab <- 'water temperature (°C)'
+xvarlab2 <- 'thermal range (°C)'
 
 data <- data %>% filter(!is.na(x))
 data <- data %>% add_count(species)
@@ -220,7 +226,7 @@ layout(cbind(1,2,3),widths=c(0.4,0.3,0.3))
 par(cex=1)
   
 emptyPlot(xlim = range(data$x),yaxt='n',xaxt='n',ann=F, ylim=range(data$size.um),bty='l',log='y')
-axis(2,cex.axis=1,lwd=0,lwd.ticks=1,at=c(0.01,0.1,1,10,100,1000),labels = c('0.01','0.1','1','10','100','1000'))
+axis(2,cex.axis=1,lwd=0,lwd.ticks=1,at=c(0.00001,0.0001,0.001,0.01,0.1,1,10,100,1000),labels = c('0.00001','0.0001','0.001','0.01','0.1','1','10','100','1000'))
 axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
 title(xlab=xvarlab)
 title(ylab=expression(mean~body~size~(µm)),line=2.8)
@@ -250,7 +256,7 @@ title(ylab=standardized~slope~(beta),line=2.8)
 abline(h=0,lty=3)
 
 plot(slope~mean.size,reg.results,bty='n',pch=bubble.pch,col=alpha(bubblecol,0.5),cex=bubblesize,bty='l',log='x',yaxt='n',xaxt='n',ann=F)
-axis(1,cex.axis=1,lwd=0,lwd.ticks=1,at=c(0.01,0.1,1,10,100,1000),labels = c('0.01','0.1','1','10','100','1000'))
+axis(1,cex.axis=1,lwd=0,lwd.ticks=1,at=c(0.00001,0.0001,0.001,0.01,0.1,1,10,100,1000),labels = c('0.00001','0.0001','0.001','0.01','0.1','1','10','100','1000'))
 axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
 title(ylab=standardized~slope~(beta),line=2.8)
 title(xlab=expression(mean~body~size~(µm)),line=2.8)
@@ -324,7 +330,7 @@ legend('topright',bty='n',legend=bquote(atop(italic('F') == .(testres[1]),italic
 
 ###### adding NLA #####
 
-nla_phyto <- read_csv('~/Desktop/nla2012_wide_phytoplankton_count_02122014.csv')
+nla_phyto <- read_csv('~/Desktop/NLA/2012/nla2012_wide_phytoplankton_count_02122014.csv')
 colnames(nla_phyto) <- tolower(colnames(nla_phyto))
 nla_phyto$species <- Hmisc::capitalize(tolower(nla_phyto$species))
 nla_phyto$species <- str_replace(nla_phyto$species, ' ', '_')
@@ -334,3 +340,8 @@ distinct(nla_phyto, species) %>% pull(species) -> nla_list
 nla_list %in% taxlist
 sum(taxlist %in% nla_list)/142
 #44% of LP species present in NLA dataset
+
+skim(nla_phyto)
+
+nla_zoo <- read_csv('~/Desktop/NLA/2012/nla2012_zoopcond_08192016.csv')
+
