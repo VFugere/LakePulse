@@ -71,7 +71,7 @@ zoo <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankto
 sizes <- select(zoo, D1:D10)
 sizes[sizes == 0] <- NA
 sizes$mean <- apply(sizes, MARGIN = 1, FUN = mean.nona)
-zoo$mean.size <- sizes$mean
+zoo$mean.size <- sizes$mean*1000 #in ug
 rm(sizes)
 
 #removing all taxa that aren't id'd to species
@@ -81,14 +81,16 @@ to.rm <- taxlist[str_detect(taxlist, '.spp')]
 to.rm <- c(to.rm, taxlist[str_detect(taxlist, 'copepodid')])
 to.rm <- c(to.rm, taxlist[str_detect(taxlist, '_NA')])
 to.rm <- c(to.rm, c('Alona_sp.','Skistodiaptomus_sp.','immature_cladoceran','Macrothrix_sp.','Acanthocyclops_sp.'))
-
-#clean up, remove species with a single site, and add latitude
 zoo <- filter(zoo, species %!in% to.rm)
 zoo$division[zoo$species == 'Leptodora_kindtii'] <- 'Cladocera'
+
+# #alternative: utiliser mean biomass instead of mean length. This is already calculated in column 'biomass factor'
+# zoo$mean.size <- zoo$`biomass factor (µg/ind)`
+
+#clean up, remove species with a single site, and add latitude
 zoo <- zoo %>% select(Lake_ID,species,division,mean.size) %>% drop_na %>% filter(is.numeric(mean.size))
 zoo <- rename(zoo, group = division)
 zoo$animal <- 'yes'
-zoo$mean.size <- zoo$mean.size*1000
 zoo <- rename(zoo, size.um = mean.size)
 zoo <- zoo %>% select(Lake_ID:group,animal,size.um)
 zoo$group <- tolower(zoo$group)
@@ -108,6 +110,12 @@ phyto <- phyto %>% rename(Lake_ID = lake_id, size.um = gald.µm, name = totalbin
   select(Lake_ID, name, size.um) %>%
   drop_na
 
+# #alternative: use individual cell mass instead of gald length
+# phyto$mean.cell.mass <- with(phyto, (biomass.mgm3/density.orgl)*1000)
+# phyto <- phyto %>% rename(Lake_ID = lake_id, size.um = mean.cell.mass, name = totalbinomial) %>%
+#   select(Lake_ID, name, size.um) %>%
+#   drop_na
+
 phyto <- left_join(phyto, phytoT, by = c('name' = 'clean.name'))
 phyto <- filter(phyto, !is.na(species))
 phyto <- phyto %>% group_by(Lake_ID, name) %>% summarize(size.um = mean(size.um)) %>% ungroup
@@ -117,7 +125,7 @@ phyto$animal <- 'no'
 phyto$species <- str_replace(phyto$species, ' ', '_')
 phyto <- select(phyto, Lake_ID, species, group, animal, size.um)
 
-### merge both dataframes and format
+#### merge both dataframes and format ####
 
 data <- bind_rows(zoo,phyto) %>% arrange(Lake_ID, size.um)
 data <- inner_join(data, lat, by = 'Lake_ID')
@@ -191,63 +199,67 @@ for(i in 1:nlevels(data$species)){
 
 #reg.results <- filter(reg.results, abs(slope) < 100)
 reg.results$xrange <- reg.results$max.lat-reg.results$min.lat
-reg.results <- reg.results %>% filter(xrange > 2)
+#reg.results <- reg.results %>% filter(xrange > 0.8)
 
 reg.results$bubblesize <- rescale(reg.results$n, c(1,4))
-reg.results$bubblecol <- 'gray'
+reg.results$bubblecol <- 'dark gray'
 reg.results$bubblecol[reg.results$p < 0.05 & reg.results$slope < 0] <- 'red'
 reg.results$bubblecol[reg.results$p < 0.05 & reg.results$slope > 0] <- 'blue'
+reg.results$bubble.pch <- 16
+reg.results$bubble.pch[reg.results$bubblecol == 'dark gray'] <- 1
 
-hist(reg.results$slope, breaks=50)
+# hist(reg.results$slope, breaks=50)
+# 
+# #plot à la Dornelas
+# plot(r2~slope,reg.results,bty='n',pch=16,col=alpha(bubblecol,0.5),cex=bubblesize)
+# abline(v=0,lty=2)
+# #not very exciting...
 
-#plot à la Dornelas
-plot(r2~slope,reg.results,bty='n',pch=16,col=alpha(bubblecol,0.5),cex=bubblesize)
-abline(v=0,lty=2)
-#not very exciting...
-
-pdf('~/Desktop/results.pdf',width=16,height=5,pointsize=12)
+pdf('~/Desktop/results.pdf',width=12,height=5,pointsize=12)
 layout(cbind(1,2,3),widths=c(0.4,0.3,0.3))
 par(cex=1)
   
 emptyPlot(xlim = range(data$x),yaxt='n',xaxt='n',ann=F, ylim=range(data$size.um),bty='l',log='y')
-axis(2,cex.axis=1,lwd=0,lwd.ticks=1,at=c(1,10,100,1000))
+axis(2,cex.axis=1,lwd=0,lwd.ticks=1,at=c(0.01,0.1,1,10,100,1000),labels = c('0.01','0.1','1','10','100','1000'))
 axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
 title(xlab=xvarlab)
 title(ylab=expression(mean~body~size~(µm)),line=2.8)
 for(i in 1:nlevels(data$species)){
   focalsp <- levels(data$species)[i]
-  spdat <- data %>% filter(species == focalsp)
+  spdat <- data %>% filter(species == focalsp) %>% arrange(x)
   spdat <- filter(spdat, !is.na(scl.size))
   if(nrow(spdat) >= 5){
     lmmod <- lm(scl.size~x,spdat)
-    lncol <- 'gray'
+    lncol <- 'dark gray'
+    lnwd <- 1
     if(summary(lmmod)$coefficients[2,4] < 0.05){
+      lnwd <- 1.5
       if(summary(lmmod)$coefficients[2,1] > 0){lncol <- 'blue'}else{
         lncol <- 'red'}
     }
     lmmod <- lm(size.um~x,spdat)
-    points(fitted(lmmod)~spdat$x,col=alpha(lncol,0.5),type='l',lwd=1)
+    points(fitted(lmmod)~spdat$x,col=alpha(lncol,0.5),type='l',lwd=lnwd)
   }
 }
 
-plot(slope~xrange,reg.results,bty='n',pch=16,col=alpha(bubblecol,0.5),cex=bubblesize,bty='l',yaxt='n',xaxt='n',ann=F)
+plot(slope~xrange,reg.results,bty='n',pch=bubble.pch,col=alpha(bubblecol,0.5),cex=bubblesize,bty='l',yaxt='n',xaxt='n',ann=F,xlim=(range(reg.results$xrange) + c(-0.5,0.5)))
 axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
 axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
 title(xlab=xvarlab2,line=2.8)
 title(ylab=standardized~slope~(beta),line=2.8)
 abline(h=0,lty=3)
 
-plot(slope~mean.size,reg.results,bty='n',pch=16,col=alpha(bubblecol,0.5),cex=bubblesize,bty='l',log='x',yaxt='n',xaxt='n',ann=F)
-axis(1,cex.axis=1,lwd=0,lwd.ticks=1,at=c(1,10,100,1000))
+plot(slope~mean.size,reg.results,bty='n',pch=bubble.pch,col=alpha(bubblecol,0.5),cex=bubblesize,bty='l',log='x',yaxt='n',xaxt='n',ann=F)
+axis(1,cex.axis=1,lwd=0,lwd.ticks=1,at=c(0.01,0.1,1,10,100,1000),labels = c('0.01','0.1','1','10','100','1000'))
 axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
 title(ylab=standardized~slope~(beta),line=2.8)
-title(xlab='mean body size (µm)',line=2.8)
+title(xlab=expression(mean~body~size~(µm)),line=2.8)
 abline(h=0,lty=3)
 
 dev.off()
 
 
-
+###### models to test if there is an overall trend #####
 
 mod <- lmer(log(size.um) ~ x + (x-1|species) + (1|species), data = data)
 plot(mod)
@@ -256,6 +268,8 @@ confint(mod)
 hist(resid(mod))
 performance(mod)
 icc(mod)
+coefplot2(mod)
+
 
 library(MCMCglmm)
 
@@ -268,61 +282,7 @@ mod1 <- MCMCglmm(slope ~ 1, data=reg.results, mev=m, prior=prior.s, random=~ sys
 
 MCMCglmm()
 
-library(randomcoloR)
 
-
-#cols2 <- randomColor(n_distinct(data$species))
-
-emptyPlot(xlim = range(data$x),yaxt='n',xaxt='n',ann=F, ylim=range(data$size.um),bty='l',log='y')
-axis(2,cex.axis=1,lwd=0,lwd.ticks=1,at=c(1,10,100,1000))
-axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
-title(xlab=xvarlab)
-title(ylab=expression(mean~body~size~(µm)),line=2.8)
-# for(focalsp in levels(mod$model$species)){
-#   spdat <- mod$model %>% filter(species == focalsp)
-#   spdat <- arrange(spdat, x)
-#   points(size.um~x,spdat,col=alpha(1,0.5),type='l')
-# }
-for(i in 1:nlevels(data$species)){
-  focalsp <- levels(data$species)[i]
-  spdat <- data %>% filter(species == focalsp)
-  spdat <- arrange(spdat, x)
-  #points(size.um~x,spdat,col=alpha(cols2[i],0.5),type='p',pch=16,cex=0.5)
-  if(nrow(spdat) >= 5){
-    lmmod <- lm(size.um~x,spdat)
-    lncol <- 'gray'
-    if(summary(lmmod)$coefficients[2,4] < 0.05){
-      if(summary(lmmod)$coefficients[2,1] > 0){lncol <- 'blue'}else{
-        lncol <- 'red'}
-    }
-    points(fitted(lmmod)~spdat$x,col=alpha(lncol,0.5),type='l',lwd=1)
-  }
-}
-# predict(mod,)
-# plot_smooth(mod, view="x", lwd=3, col=cols[1], rm.ranef=T, se=1.96, rug=F, add=T)
-# legend('topright',bty='n',legend=bquote(atop(italic('F') == .(testres[1]),italic('p') == .(testres[2]))))
-
-
-emptyPlot(xlim = range(data$x),yaxt='n',xaxt='n',ann=F, ylim=range(data$scl.size, na.rm = T),bty='l')
-axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
-axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
-title(xlab=xvarlab)
-title(ylab=expression(body~size~(mm)),line=2.8)
-# for(focalsp in levels(mod$model$species)){
-#   spdat <- mod$model %>% filter(species == focalsp)
-#   spdat <- arrange(spdat, x)
-#   points(scl.size~x,spdat,col=alpha(1,0.5),type='l')
-# }
-for(i in 1:nlevels(data$species)){
-  focalsp <- levels(data$species)[i]
-  spdat <- data %>% filter(species == focalsp)
-  spdat <- arrange(spdat, x)
-  #points(scl.size~x,spdat,col=alpha(cols2[i],0.5),type='p',pch=16,cex=0.5)
-  if(sum(is.na(spdat$scl.size))<1){
-  lmmod <- lm(scl.size~x,spdat)
-  points(fitted(lmmod)~spdat$x,col=alpha(cols2[i],0.5),type='l',lwd=0.8)
-  }
-}
 
 
 mod <- bam(size.um ~ s(x, k = 8) + s(x, species, bs = 'fs', k = 6), data = data,nthreads=2)
@@ -362,5 +322,15 @@ plot_smooth(mod, view="x", lwd=3, col=1, rm.ranef=T, se=1.96, rug=F, add=T)
 legend('topright',bty='n',legend=bquote(atop(italic('F') == .(testres[1]),italic('p') == .(testres[2]))))
 
 
-#
+###### adding NLA #####
 
+nla_phyto <- read_csv('~/Desktop/nla2012_wide_phytoplankton_count_02122014.csv')
+colnames(nla_phyto) <- tolower(colnames(nla_phyto))
+nla_phyto$species <- Hmisc::capitalize(tolower(nla_phyto$species))
+nla_phyto$species <- str_replace(nla_phyto$species, ' ', '_')
+nla_phyto <- nla_phyto %>% drop_na(species)
+
+distinct(nla_phyto, species) %>% pull(species) -> nla_list
+nla_list %in% taxlist
+sum(taxlist %in% nla_list)/142
+#44% of LP species present in NLA dataset
