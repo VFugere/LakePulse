@@ -267,7 +267,7 @@ for(i in 1:nlevels(data$species)){
 reg.results$xrange <- reg.results$max.lat-reg.results$min.lat
 #reg.results <- reg.results %>% filter(xrange > 0.8)
 
-reg.results$bubblesize <- rescale(reg.results$n, c(1,4))
+reg.results$bubblesize <- rescale(reg.results$r2, c(1,4))
 reg.results$bubblecol <- 'dark gray'
 reg.results$bubblecol[reg.results$p < 0.05 & reg.results$slope < 0] <- 'red'
 reg.results$bubblecol[reg.results$p < 0.05 & reg.results$slope > 0] <- 'blue'
@@ -281,10 +281,10 @@ reg.results$bubble.pch[reg.results$bubblecol == 'dark gray'] <- 1
 # abline(v=0,lty=2)
 # #not very exciting...
 
-pdf('~/Desktop/results.pdf',width=14,height=6,pointsize=12)
-layout(cbind(1,2,3),widths=c(0.4,0.3,0.3))
-par(cex=1)
-  
+#####
+
+pdf('~/Desktop/regressions.pdf',width=8,height=7,pointsize=14)
+
 labels <- parse(text=paste(10, '^', seq(-8,2,1), sep=''))
 
 emptyPlot(xlim = range(data$x),yaxt='n',xaxt='n',ann=F, ylim=range(data$ind.size),bty='l',log='y')
@@ -310,17 +310,36 @@ for(i in 1:nlevels(data$species)){
   }
 }
 
+dev.off()
+
+##### slopes  #####
+
+pdf('~/Desktop/slopes.pdf',width=14,height=6,pointsize=14)
+par(mfrow=c(1,3),cex=1,mar=c(4,2.5,0,0),oma=c(0,2,0,0))
+
+plot(slope~n,reg.results,bty='n',pch=bubble.pch,col=alpha(bubblecol,0.5),cex=bubblesize,bty='l',yaxt='n',xaxt='n',ann=F, log = 'x')
+axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
+axis(1,cex.axis=1,lwd=0,lwd.ticks=1,at=c(10,100,1000))
+title(xlab=number~of~lakes,line=2.8)
+abline(h=0,lty=3)
+
+mtext(expression(Delta~body~mass~per~degree~latitude~(sd)),outer = T,side=2,line=0.5)
+
+# which.max(reg.results$n)
+# reg.results[244,]
+# reg.results %>% arrange(n) %>% pull(focalsp)
+
 plot(slope~xrange,reg.results,bty='n',pch=bubble.pch,col=alpha(bubblecol,0.5),cex=bubblesize,bty='l',yaxt='n',xaxt='n',ann=F,xlim=(range(reg.results$xrange) + c(-0.5,0.5)))
 axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
 axis(1,cex.axis=1,lwd=0,lwd.ticks=1)
 title(xlab=xvarlab2,line=2.8)
-title(ylab=standardized~slope~(beta),line=2.8)
+#title(ylab=slope~(beta),line=2.8)
 abline(h=0,lty=3)
 
 plot(slope~mean.size,reg.results,bty='n',pch=bubble.pch,col=alpha(bubblecol,0.5),cex=bubblesize,bty='l',log='x',yaxt='n',xaxt='n',ann=F)
 axis(1,cex.axis=1,lwd=0,lwd.ticks=1,at=10^(-8:2),labels = labels)
 axis(2,cex.axis=1,lwd=0,lwd.ticks=1)
-title(ylab=standardized~slope~(beta),line=2.8)
+#title(ylab=slope~(beta),line=2.8)
 title(xlab=sizelab,line=2.8)
 abline(h=0,lty=3)
 
@@ -337,6 +356,8 @@ sum(reg.results$bubblecol == 'dark gray') / nrow(reg.results)
 
 ###### models to test if there is an overall trend #####
 
+#mixed model
+
 mod <- lmer(log(ind.size) ~ x + (x-1|species) + (1|species), data = data)
 plot(mod)
 summary(mod)
@@ -346,12 +367,21 @@ performance(mod)
 icc(mod)
 coefplot2(mod)
 
+#bayesian meta-analytical model
 
-###
+library(MCMCglmm)
+#MCMCglmm parameters
+a <- 1000
+priorz <- list(R = list(V = diag(1), nu = 0.002), G = list(G1 = list(V = diag(1), nu = 1, alpha.mu = 0, alpha.V = diag(1)*a)))
+prior.s <- list(R=list(V=diag(4),n=0.002),G=list(G1=list(V=diag(1),n=0.002),G2=list(V=diag(1),n=0.002)))
+m <-reg.results$SE^2 #variance of coefficients
+bLMM <- MCMCglmm(slope ~ 1, data=reg.results, mev=m, nitt=103000, verbose=T)
+summary(bLMM)
 
+##### GAMM #####
 
 mod <- bam(ind.size ~ s(x, k = 8) + s(x, species, bs = 'fs', k = 6), data = data,nthreads=2)
-#mod <- bam(scl.size ~ s(x, k = 8) + s(x, species, bs = 'fs', k = 6), data = data,nthreads=2)
+mod <- bam(scl.size ~ s(x, k = 8) + s(x, species, bs = 'fs', k = 6), data = data,nthreads=2)
 summary(mod)
 modsum <- summary(mod, re.test=F)
 testres <- modsum$s.table[c('s(x)'),c('F','p-value')]
@@ -380,4 +410,13 @@ plot_smooth(mod, view="x", lwd=3, col=1, rm.ranef=T, se=1.96, rug=F, add=T)
 legend('topright',bty='n',legend=bquote(atop(italic('F') == .(testres[1]),italic('p') == .(testres[2]))))
 
 
+#######
+
+size.diffs <- numeric(0)
+for(i in 1:nlevels(data$species)){
+  focalsp <- levels(data$species)[i]
+  spdat <- data %>% filter(species == focalsp)
+  diff <- (max(spdat$ind.size) - min(spdat$ind.size))/min(spdat$ind.size)
+  size.diffs[i] <-
+}
 
