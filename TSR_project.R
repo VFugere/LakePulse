@@ -133,7 +133,7 @@ phyto <- select(phyto, Lake_ID, species, group, animal, ind.size)
 
 ###### adding NLA #####
 
-nla_phyto <- read_csv('~/Desktop/NLA/2012/nla2012_wide_phytoplankton_count_02122014.csv')
+nla_phyto <- read_csv('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/NLA/2012/nla2012_wide_phytoplankton_count_02122014.csv')
 colnames(nla_phyto) <- tolower(colnames(nla_phyto))
 nla_phyto$species <- Hmisc::capitalize(tolower(nla_phyto$species))
 nla_phyto$species <- str_replace(nla_phyto$species, ' ', '_')
@@ -152,19 +152,19 @@ nla_phyto <- nla_phyto %>% select(site_id, species, algal_group, ug.per.cell) %>
   mutate('animal' = 'no') %>% rename(Lake_ID = site_id, group = algal_group, ind.size = ug.per.cell) %>%
   select(Lake_ID, species, group, animal, ind.size)
 
-# nla_phyto07 <- read_csv('~/Desktop/NLA/2007/nla2007_phytoplankton_softalgaecount_20091023.csv')
+# nla_phyto07 <- read_csv('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/NLA/2007/nla2007_phytoplankton_softalgaecount_20091023.csv')
 # nla_phyto07 %>% distinct(TAXANAME) %>% pull(TAXANAME)
 # nla_phyto07 %>% filter(TAXANAME == 'Kirchneriella lunaris') %>% pull(CELL_VOLUME)
 # nla_phyto07 %>% filter(TAXANAME == 'Coelastrum microporum') %>% pull(CELL_VOLUME)
 # #no measurement of cell size: all cells of a any given species are given the same cell volume
 
-nla_zoo <- read_csv('~/Desktop/NLA/2012/nla2012_zoopcnt_04032014.csv')
+nla_zoo <- read_csv('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/NLA/2012/nla2012_zoopcnt_04032014.csv')
 colnames(nla_zoo) <- tolower(colnames(nla_zoo))
 nla_zoo$ug.per.ind <- with(nla_zoo, biomass/density)
 nla_zoo <- select(nla_zoo, site_id, taxa_id, ug.per.ind)
 nla_zoo <- nla_zoo %>% rename(Lake_ID = site_id)
 
-nla_zoolist <- read_csv('~/Desktop/NLA/2012/nla2012_zooptaxa_wide_10272015.csv')
+nla_zoolist <- read_csv('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/NLA/2012/nla2012_zooptaxa_wide_10272015.csv')
 colnames(nla_zoolist) <- tolower(colnames(nla_zoolist))
 nla_zoolist$species <- tolower(nla_zoolist$species)
 nla_zoolist <- nla_zoolist %>% drop_na(species)
@@ -377,6 +377,12 @@ prior.s <- list(R=list(V=diag(4),n=0.002),G=list(G1=list(V=diag(1),n=0.002),G2=l
 m <-reg.results$SE^2 #variance of coefficients
 bLMM <- MCMCglmm(slope ~ 1, data=reg.results, mev=m, nitt=103000, verbose=T)
 summary(bLMM)
+
+######
+
+# intra vs. interspecific contribution to variation in community-weighted mean body size
+
+
 
 ##### GAMM #####
 
