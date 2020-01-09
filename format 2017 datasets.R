@@ -47,7 +47,7 @@ for(i in 6:11){
 
 bad.zoo.samples <- c('07-057','17-050')#,'08-205','07-029') # remove these two if anything weird (see email Cindy 30-Sept-2019)
 
-zoo.abund <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2017/all raw data 2017.xlsx', sheet='abundances') %>%
+zoo.abund <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2017.xlsx', sheet='abundances') %>%
   filter(!(ID_lakepulse %in% bad.zoo.samples)) %>%
   rename(Lake_ID = ID_lakepulse, abund = '#individuals counted') %>%
   select(Lake_ID, name, abund)
@@ -63,7 +63,7 @@ zoo.abund <- zoo.abund %>%
 
 #
 
-zoo.biomass <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2017/all raw data 2017.xlsx', sheet='clean biomass') %>%
+zoo.biomass <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2017.xlsx', sheet='clean biomass') %>%
   filter(!(ID_lakepulse %in% bad.zoo.samples)) %>%
   rename(Lake_ID = ID_lakepulse, biomass = 'species biomass (µg d.w./L)') %>%
   select(Lake_ID, name, biomass)
@@ -75,7 +75,7 @@ zoo.biomass <- spread(zoo.biomass,name, biomass) #ug DM L^-1, copepodite not gro
 
 #
 
-zoo.biomass.grouped <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2017/ALLfinal_grouping2017.csv', stringsAsFactors = F) %>%
+zoo.biomass.grouped <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/ALLfinal_grouping2017.csv', stringsAsFactors = F) %>%
   filter(!(Lake_ID %in% bad.zoo.samples)) %>%
   mutate_at(vars(Ergasilus.spp.:Simocephalus..spp.), as.numeric)
 
@@ -87,10 +87,10 @@ colnames(zoo.biomass.grouped) <- str_replace(colnames(zoo.biomass.grouped), ' \\
 
 #phyto
 
-phyto <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/phyto2017_clean.xlsx', sheet='Longform')
+phyto <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton/phyto2017_clean.xlsx', sheet='Longform')
 
 # phyto traits and taxonomy
-phytoT <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/phyto2017_clean.xlsx', sheet='taxonomy_clean')
+phytoT <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton/phyto2017_clean.xlsx', sheet='taxonomy_clean')
 phytoT$group <- tolower(phytoT$group)
 
 #use clean taxonomy sheet to replace erroneous species name in community matrix
@@ -113,7 +113,7 @@ phyto[is.na(phyto)] <- 0
 
 # ASV data Susanne
 
-bacterio <- read.table('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/bacterioplankton2017/otu_table_ASV_level.txt', header=T, stringsAsFactors = F)
+bacterio <- read.table('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/bacterioplankton/otu_table_ASV_level.txt', header=T, stringsAsFactors = F)
 colnames(bacterio)[1] <- 'Lake_ID'
 
 # Mario M. recommended deleting global singleton but not global doubleton or more. I.e. no need for rarefaction
@@ -137,7 +137,7 @@ bacterio <- bacterio[,-(to.rm)]
 
 #bacterio taxonomy
 
-bacterioT <- read.table('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/bacterioplankton2017/taxa_ASV.txt', header=T, stringsAsFactors = F)
+bacterioT <- read.table('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/bacterioplankton/taxa_ASV.txt', header=T, stringsAsFactors = F)
 
 # saving
 
