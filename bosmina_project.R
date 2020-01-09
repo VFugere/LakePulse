@@ -18,7 +18,7 @@ devtools::source_url("https://raw.githubusercontent.com/VFugere/LakePulse/master
 
 # 2017
 
-d2017 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2017/ALLfinal_grouping2017.csv', stringsAsFactors = F) %>%
+d2017 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/ALLfinal_grouping2017.csv', stringsAsFactors = F) %>%
   mutate_at(vars(Ergasilus.spp.:Simocephalus..spp.), as.numeric)
 
 colnames(d2017) <- str_replace(colnames(d2017), '\\.', ' ')
@@ -31,7 +31,7 @@ colSums(d2017[,2:69]) %>% sort
 
 # 2018
 
-d2018 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2018/ALLfinal_grouping2018.csv', stringsAsFactors = F) %>%
+d2018 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/ALLfinal_grouping2018.csv', stringsAsFactors = F) %>%
   mutate_at(vars(Ergasilus.spp.:Simocephalus..spp.), as.numeric)
 
 colnames(d2018) <- str_replace(colnames(d2018), '\\.', ' ')
@@ -48,6 +48,8 @@ zooLP <- bind_rows(d2017,d2018)
 zooLP[is.na(zooLP)] <- 0
 zooLP <- zooLP[,c(1,order(names(zooLP[,2:ncol(zooLP)]))+1)]
 
+colSums(zooLP[,2:100]) %>% sort
+
 #make a map
 
-colSums(zooLP[,2:100]) %>% sort
+
