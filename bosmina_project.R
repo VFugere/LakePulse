@@ -69,6 +69,9 @@ map <- getMap(resolution = 'low')[which(getMap()$ADMIN %in% c('Canada','United S
 map <- spTransform(map, CRS=CRS("+proj=aea +lat_1=26.605547828888216 +lat_2=62.451651032950174 +lon_0=-96.85546875"))
 plot(map)  
 
+#https://projectionwizard.org/#
+#+proj=aea +lat_1=33.99791731855025 +lat_2=63.00714506395516 +lon_0=-96.85546875
+
 load('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/basic_data.RData')
 
 invaded <- zooLP %>% select(Lake_ID, `Eubosmina coregoni`) %>% filter(`Eubosmina coregoni` > 0)
