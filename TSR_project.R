@@ -63,7 +63,7 @@ dev.off()
 
 bad.zoo.samples <- c('07-057','17-050')#,'08-205','07-029') # remove these two if anything weird (see email Cindy 30-Sept-2019)
 
-zoo <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton2017/all raw data 2017.xlsx', sheet='raw') %>%
+zoo <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2017.xlsx', sheet='raw') %>%
   filter(!(ID_lakepulse %in% bad.zoo.samples)) %>%
   rename(Lake_ID = ID_lakepulse)
 
@@ -97,8 +97,8 @@ zoo$group <- tolower(zoo$group)
 
 ### phytoplankton
 
-phyto <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/phyto2017_clean.xlsx', sheet='Longform')
-phytoT <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton2017/phyto2017_clean.xlsx', sheet='taxonomy_clean')
+phyto <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton/phyto2017_clean.xlsx', sheet='Longform')
+phytoT <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/phytoplankton/phyto2017_clean.xlsx', sheet='taxonomy_clean')
 phytoT$group <- tolower(phytoT$group)
 
 #use clean taxonomy sheet to replace erroneous species name in community matrix
