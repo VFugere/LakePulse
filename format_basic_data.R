@@ -10,7 +10,7 @@ library(skimr)
 library(readxl)
 library(sp)
 
-#basic data data
+#basic data
 
 d2017 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2017_basic_info.csv', sep = ';', stringsAsFactors = F)
 d2017$year <- 2017
