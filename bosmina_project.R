@@ -42,6 +42,63 @@ colnames(d2018) <- str_replace(colnames(d2018), ' \\.', ' ')
 
 colSums(d2018[,2:93]) %>% sort
 
+# 2019
+
+#first do what Cindy did for other years, splitting biomass of un-Id'd species across species, and grouping copepodids with adults
+
+dat <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2019.xlsx', sheet = 'clean biomass') 
+
+# first group all copepodids id'd to species level with adults
+taxo <- dat %>% filter(division == 'Copepoda') %>%
+  distinct(`species name`) %>%
+  filter(`species name` %!in% c("calanoid copepodid", "cyclopoid copepodid")) %>% 
+  rename(name = `species name`) %>%
+  arrange(name)
+taxo %>% pull(name)
+taxo$out <- taxo$name
+taxo$out <- str_remove(taxo$out, pattern = ' copepodid')
+taxo <- as.data.frame(taxo)
+taxo$out[taxo$name == 'Heterocope septentrionalis'] <- 'Heterocope  septentrionalis'
+
+dat[dat$`species name` %in% taxo$name,'species name'] <- taxo$out[match(dat$`species name`[dat$`species name` %in% taxo$name],taxo$name)]
+colnames(dat)[2:4] <- c('name','division','biomass')
+dat <- dat %>% group_by(ID_lakepulse,name,division) %>% summarize(biomass = sum(biomass)) %>% ungroup
+
+#making a taxonomy data frame to distinguish calanoids from cyclopoids
+taxo <- dat %>% filter(division == 'Copepoda') %>% distinct(name)
+taxo$order <- 'calanoid'
+taxo <- arrange(taxo, name)
+taxo$order[12] <- 'poecilostomatoid'
+#finding cyclopoids
+taxo$order[c(1,5,6,7,8,13,14,15,28,29,30,31,33,36)] <- 'cyclopoid'
+
+dat$genus <- str_remove(dat$name, '\\ .*')
+dat$cyc_order <- taxo$order[match(dat$name,taxo$name)]
+
+writexl::write_xlsx(dat, '~/Desktop/2019.xlsx')
+
+out.dat <- data.frame
+
+lakes <- unique(dat$ID_lakepulse)
+
+i<-1
+
+sub <- dat %>% filter(ID_lakepulse == lakes[i])
+#split copepodids based on species
+sub$copepopid <- 'no'
+sub$copepopid[str_detect(sub$name, 'copepodid')] <- 'yes'
+sub.adults <- filter(sub, copepopid == 'no')
+sub.copepodid <- filter(sub, copepopid == 'yes')
+for(c in unique(sub.copepodid$cyc_order)){
+  order <- c
+  babybiomass <- sub.copepodid %>% filter(cyc_order == c) %>% pull(biomass)
+  prop.dat <- sub.adults %>% filter(cyc_order == c)
+  prop.dat$props <- prop.dat$biomass/sum(prop.dat$biomass)
+  
+}
+  
+  
+
 #bind all
 
 zooLP <- bind_rows(d2017,d2018)
