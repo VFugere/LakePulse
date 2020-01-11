@@ -54,7 +54,6 @@ taxo <- dat %>% filter(division == 'Copepoda') %>%
   filter(`species name` %!in% c("calanoid copepodid", "cyclopoid copepodid")) %>% 
   rename(name = `species name`) %>%
   arrange(name)
-taxo %>% pull(name)
 taxo$out <- taxo$name
 taxo$out <- str_remove(taxo$out, pattern = ' copepodid')
 taxo <- as.data.frame(taxo)
@@ -84,20 +83,26 @@ lakes <- unique(dat$ID_lakepulse)
 i<-1
 
 sub <- dat %>% filter(ID_lakepulse == lakes[i])
-#split copepodids based on species
+
+#split copepodids based on species, as long as one species was id'd to genus or species
 sub$copepopid <- 'no'
 sub$copepopid[str_detect(sub$name, 'copepodid')] <- 'yes'
-sub.adults <- filter(sub, copepopid == 'no')
+sub.adults <- filter(sub, copepopid == 'no', !is.na(cyc_order))
 sub.copepodid <- filter(sub, copepopid == 'yes')
-for(c in unique(sub.copepodid$cyc_order)){
-  order <- c
-  babybiomass <- sub.copepodid %>% filter(cyc_order == c) %>% pull(biomass)
-  prop.dat <- sub.adults %>% filter(cyc_order == c)
-  prop.dat$props <- prop.dat$biomass/sum(prop.dat$biomass)
-  
-}
-  
-  
+if(nrow(sub.adults)>0){
+  for(c in unique(sub.copepodid$cyc_order)){
+    order <- c
+    babybiomass <- sub.copepodid %>% filter(cyc_order == c) %>% pull(biomass)
+    prop.dat <- sub.adults %>% filter(cyc_order == c)
+    prop.dat$props <- prop.dat$biomass/sum(prop.dat$biomass)
+    prop.dat$bm.to.add <- prop.dat$props*babybiomass
+    prop.dat$final.bm <- prop.dat$biomass+prop.dat$bm.to.add
+    sub$biomass[match(prop.dat$name,sub$name)] <- prop.dat$final.bm
+  }
+  sub <- filter(sub, copepopid == 'no')
+}  
+#### need to add scenario where one order has an adult id, and one doesnt, but there are copepodids of both orders
+
 
 #bind all
 
