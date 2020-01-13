@@ -44,7 +44,7 @@ colSums(d2018[,2:93]) %>% sort
 
 # 2019
 
-#first do what Cindy did for other years, splitting biomass of un-Id'd species across species, and grouping copepodids with adults
+#do what Cindy did for other years, splitting biomass of un-Id'd species across species, and grouping copepodids with adults
 
 dat <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2019.xlsx', sheet = 'clean biomass') 
 
@@ -74,34 +74,58 @@ taxo$order[c(1,5,6,7,8,13,14,15,28,29,30,31,33,36)] <- 'cyclopoid'
 dat$genus <- str_remove(dat$name, '\\ .*')
 dat$cyc_order <- taxo$order[match(dat$name,taxo$name)]
 
-writexl::write_xlsx(dat, '~/Desktop/2019.xlsx')
-
-out.dat <- data.frame
-
+out.dat <- data.frame()
 lakes <- unique(dat$ID_lakepulse)
 
-i<-1
+for(i in 1:length(lakes)){
+  
+  sub <- dat %>% filter(ID_lakepulse == lakes[i])
+  
+  #split copepodids based on species, as long as one species was id'd to genus or species
+  sub$copepopid <- 'no'
+  sub$copepopid[str_detect(sub$name, 'copepodid')] <- 'yes'
+  sub.adults <- filter(sub, copepopid == 'no', !is.na(cyc_order))
+  sub.copepodid <- filter(sub, copepopid == 'yes')
+  if(nrow(sub.adults)>0){
+    for(c in unique(sub.copepodid$cyc_order)){
+      order <- c
+      babybiomass <- sub.copepodid %>% filter(cyc_order == c) %>% pull(biomass)
+      prop.dat <- sub.adults %>% filter(cyc_order == c)
+      if(nrow(prop.dat) > 0){
+        prop.dat$props <- prop.dat$biomass/sum(prop.dat$biomass)
+        prop.dat$bm.to.add <- prop.dat$props*babybiomass
+        prop.dat$final.bm <- prop.dat$biomass+prop.dat$bm.to.add
+        sub$biomass[match(prop.dat$name,sub$name)] <- prop.dat$final.bm
+        sub <- filter(sub, name != paste(order,'copepodid'))
+      }
+    }
+  }  
+  
+  #add data to output data frame
+  out.dat <- bind_rows(out.dat,sub)
+  
+}
 
-sub <- dat %>% filter(ID_lakepulse == lakes[i])
+#adding proportion of each genus for cladoceran split
+out.dat$genus <- gsub(" .*$", "", out.dat$name) #A space (), then any character (.) any number of times (*) until the end of the string ($)
 
-#split copepodids based on species, as long as one species was id'd to genus or species
-sub$copepopid <- 'no'
-sub$copepopid[str_detect(sub$name, 'copepodid')] <- 'yes'
-sub.adults <- filter(sub, copepopid == 'no', !is.na(cyc_order))
-sub.copepodid <- filter(sub, copepopid == 'yes')
-if(nrow(sub.adults)>0){
-  for(c in unique(sub.copepodid$cyc_order)){
-    order <- c
-    babybiomass <- sub.copepodid %>% filter(cyc_order == c) %>% pull(biomass)
-    prop.dat <- sub.adults %>% filter(cyc_order == c)
-    prop.dat$props <- prop.dat$biomass/sum(prop.dat$biomass)
-    prop.dat$bm.to.add <- prop.dat$props*babybiomass
-    prop.dat$final.bm <- prop.dat$biomass+prop.dat$bm.to.add
-    sub$biomass[match(prop.dat$name,sub$name)] <- prop.dat$final.bm
-  }
-  sub <- filter(sub, copepopid == 'no')
-}  
-#### need to add scenario where one order has an adult id, and one doesnt, but there are copepodids of both orders
+allprops <- numeric(0)
+
+for(i in 1:length(lakes)){
+  sub <- out.dat %>% filter(ID_lakepulse == lakes[i])
+  for(g in 1:n_distinct(sub$genus)){
+    sub2 <- sub %>% filter(genus == unique(sub$genus)[g])
+    props <- sub2$biomass / sum(sub2$biomass)
+    allprops <- c(allprops,props)
+  }  
+}
+    
+out.dat$prop <- allprops
+
+#finishing split in excel, too many exceptions
+writexl::write_xlsx(out.dat, '~/Desktop/2019.xlsx')
+
+
 
 
 #bind all
