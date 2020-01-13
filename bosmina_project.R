@@ -122,6 +122,13 @@ for(i in 1:length(lakes)){
     
 out.dat$prop <- allprops
 
+#identify problematic lines
+out.dat$unid <- ''
+out.dat$unid[str_detect(out.dat$name, '\\.')] <- 'yes'
+
+out.dat$to.correct <- ''
+out.dat$to.correct[out.dat$unid == 'yes' & out.dat$prop < 1] <- 'yes'
+
 #finishing split in excel, too many exceptions
 writexl::write_xlsx(out.dat, '~/Desktop/2019.xlsx')
 
