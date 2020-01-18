@@ -24,11 +24,11 @@ cols <- brewer.pal(3, 'Dark2')
 #### temp data ####
 
 load('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/basic_data.RData')
-kestrel <- read.csv2('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/2017 not merged/LakePulse2017_kestrel_QC.csv')
+kestrel <- read.csv2('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2017_kestrel_QC.csv')
 colnames(kestrel)[1] <- 'Lake_ID'
-rbr <- read.csv2('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/2017 not merged/LakePulse2017_RBR_top_bottom_QC.csv')
+rbr <- read.csv2('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2017_RBR_top_bottom_QC.csv')
 colnames(rbr)[1] <- 'Lake_ID'
-alex <- read.csv('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/2017 not merged/Alex_weather_station_data.csv')
+alex <- read.csv('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/other sources/Alex_weather_station_data.csv')
 colnames(alex)[1] <- 'Lake_ID'
 
 kestrel <- kestrel %>% select(Lake_ID,temp) %>% rename(airtemp = temp)
@@ -61,18 +61,34 @@ dev.off()
 
 #### plankton data ####
 
-bad.zoo.samples <- c('07-057','17-050')#,'08-205','07-029') # remove these two if anything weird (see email Cindy 30-Sept-2019)
+#bad.zoo.samples <- c('07-057','17-050')#,'08-205','07-029') # remove these two if anything weird (see email Cindy 30-Sept-2019)
 
-zoo <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2017.xlsx', sheet='raw') %>%
-  filter(!(ID_lakepulse %in% bad.zoo.samples)) %>%
-  rename(Lake_ID = ID_lakepulse)
+d2017 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2017.xlsx', sheet='raw') %>% select(ID_lakepulse,genus,species,division,`#individuals counted`,`# / L`,D1:D10)
+d2018 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2018.xlsx', sheet='raw') %>% select(ID_lakepulse,genus,species,division,`#individuals counted`,`# / L`,D1:D10)
+d2019 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2019.xlsx', sheet='raw') %>% select(ID_lakepulse,genus,species,division,`#individuals counted`,`# / L`,D1:D10)
+
+zoo <- bind_rows(d2017,d2018,d2019) %>% rename(Lake_ID = ID_lakepulse, abundance = `#individuals counted`, density = `# / L`)
+zoo <- filter(zoo, division %in% c('Cladocera','Copepoda'))
+rm(d2017,d2018,d2019)
 
 #calculate mean body size, excluding 0s and NAs
 sizes <- select(zoo, D1:D10)
 sizes[sizes == 0] <- NA
 sizes$mean <- apply(sizes, MARGIN = 1, FUN = mean.nona)
-zoo$mean.size <- sizes$mean*1000 #in ug
+zoo$mean.size <- sizes$mean*1000 #in um
 rm(sizes)
+
+## community weighted mean body size
+
+zoo$tot.size <- zoo$density*zoo$mean.size
+cmw <- zoo %>% group_by(Lake_ID) %>% summarize(total.zoo.length = sum(tot.size), total.density = sum(density))
+cmw$cwms <- cmw$total.zoo.length/cmw$total.density
+cmw <- left_join(cmw,basic.data)
+plot(cwms~latitude,cmw,pch=16,cex=0.5)
+library(party)
+dat <- cmw %>% select(cwms, latitude, longitude, area:ecozone, Shore_len:feow)
+dat <- dat %>% mutate_if(is.character, ~as.factor(.))
+plot(ctree(cwms ~ ., dat))
 
 #removing all taxa that aren't id'd to species
 zoo$species <- paste(zoo$genus,zoo$species,sep='_')
@@ -80,9 +96,8 @@ distinct(zoo, species) %>% pull(species) -> taxlist
 to.rm <- taxlist[str_detect(taxlist, '.spp')]
 to.rm <- c(to.rm, taxlist[str_detect(taxlist, 'copepodid')])
 to.rm <- c(to.rm, taxlist[str_detect(taxlist, '_NA')])
-to.rm <- c(to.rm, c('Alona_sp.','Skistodiaptomus_sp.','immature_cladoceran','Macrothrix_sp.','Acanthocyclops_sp.'))
+to.rm <- c(to.rm, c('Pleuroxus_sp.','Latona_sp.','Alona_sp.','Skistodiaptomus_sp.','immature_cladoceran','Macrothrix_sp.','Acanthocyclops_sp.'))
 zoo <- filter(zoo, species %!in% to.rm)
-zoo$division[zoo$species == 'Leptodora_kindtii'] <- 'Cladocera'
 
 #alternative: utiliser mean biomass instead of mean length. This is already calculated in column 'biomass factor'
 zoo$mean.size <- zoo$`biomass factor (µg/ind)`
@@ -189,6 +204,9 @@ nla_data <- nla_data %>% drop_na(latitude, ind.size)
 
 #### merge both dataframes and format ####
 
+#only zoo
+data <- zoo %>% arrange(Lake_ID, ind.size)
+
 data <- bind_rows(zoo,phyto) %>% arrange(Lake_ID, ind.size)
 data <- inner_join(data, lat, by = 'Lake_ID')
 #data <- left_join(data, rbr, by = 'Lake_ID')
@@ -204,8 +222,8 @@ xvarlab2 <- 'latitudinal range (degrees)'
 # xvarlab2 <- 'thermal range (°C)'
 
 ##label for size measurement
-#sizelab <- expression(mean~body~size~(µm))
-sizelab <- expression(mean~body~mass~(µg))
+sizelab <- expression(mean~body~size~(µm))
+#sizelab <- expression(mean~body~mass~(µg))
 
 data <- data %>% filter(!is.na(x))
 data <- data %>% add_count(species)
@@ -268,18 +286,18 @@ reg.results$xrange <- reg.results$max.lat-reg.results$min.lat
 #reg.results <- reg.results %>% filter(xrange > 0.8)
 
 reg.results$bubblesize <- rescale(reg.results$r2, c(1,4))
-reg.results$bubblecol <- 'dark gray'
+reg.results$bubblecol <- 'grey50'
 reg.results$bubblecol[reg.results$p < 0.05 & reg.results$slope < 0] <- 'red'
 reg.results$bubblecol[reg.results$p < 0.05 & reg.results$slope > 0] <- 'blue'
 reg.results$bubble.pch <- 16
-reg.results$bubble.pch[reg.results$bubblecol == 'dark gray'] <- 1
+reg.results$bubble.pch[reg.results$bubblecol == 'grey50'] <- 1
 
-# hist(reg.results$slope, breaks=50)
-# 
-# #plot à la Dornelas
-# plot(r2~slope,reg.results,bty='n',pch=16,col=alpha(bubblecol,0.5),cex=bubblesize)
-# abline(v=0,lty=2)
-# #not very exciting...
+hist(reg.results$slope, breaks=50)
+
+#plot à la Dornelas
+plot(r2~slope,reg.results,bty='n',pch=16,col=alpha(bubblecol,0.5),cex=bubblesize)
+abline(v=0,lty=2)
+#not very exciting...
 
 #####
 
@@ -298,7 +316,7 @@ for(i in 1:nlevels(data$species)){
   spdat <- filter(spdat, !is.na(scl.size))
   if(nrow(spdat) >= 10){
     lmmod <- lm(scl.size~x,spdat)
-    lncol <- 'dark gray'
+    lncol <- 'grey50'
     lnwd <- 1
     if(summary(lmmod)$coefficients[2,4] < 0.05){
       lnwd <- 1
@@ -351,7 +369,7 @@ sum(reg.results$bubblecol == 'blue') / nrow(reg.results)
 #20% bergmann cline
 sum(reg.results$bubblecol == 'red') / nrow(reg.results)
 #5% inverse bergmann
-sum(reg.results$bubblecol == 'dark gray') / nrow(reg.results)
+sum(reg.results$bubblecol == 'grey50') / nrow(reg.results)
 #75% no trend
 
 ###### models to test if there is an overall trend #####
@@ -425,4 +443,7 @@ for(i in 1:nlevels(data$species)){
   diff <- (max(spdat$ind.size) - min(spdat$ind.size))/min(spdat$ind.size)
   size.diffs[i] <-
 }
+
+####lake mean size###
+zoo <- 
 
