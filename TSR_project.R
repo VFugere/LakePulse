@@ -44,7 +44,7 @@ merge <- inner_join(rbr,kestrel) %>% inner_join(alex) %>% inner_join(lat)
 #mean annual air temp since 1950 correlate almost perfectly with latitude. So can use latitude as a proxy for air temp
 #latitude should provide a proxy for water temp for all lakes.
 
-pdf('~/Desktop/tempgraph.pdf',width=10,height = 5,pointsize = 12)
+#pdf('~/Desktop/tempgraph.pdf',width=10,height = 5,pointsize = 12)
 par(mfrow=c(1,2), cex=1)
 
 merge <- merge %>% drop_na
@@ -57,17 +57,17 @@ scatter.smooth(y=merge$histtemp,x=merge$latitude,lpars = list(lwd = 5,col=alpha(
 r <- round(cor(y=merge$histtemp,x=merge$latitude),2)
 legend('topright',bty='n',legend=bquote(R^2 == .(r)))
 
-dev.off()
+#dev.off()
 
 #### plankton data ####
 
 #bad.zoo.samples <- c('07-057','17-050')#,'08-205','07-029') # remove these two if anything weird (see email Cindy 30-Sept-2019)
 
-d2017 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2017.xlsx', sheet='raw') %>% select(ID_lakepulse,genus,species,division,`#individuals counted`,`# / L`,D1:D10)
-d2018 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2018.xlsx', sheet='raw') %>% select(ID_lakepulse,genus,species,division,`#individuals counted`,`# / L`,D1:D10)
-d2019 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2019.xlsx', sheet='raw') %>% select(ID_lakepulse,genus,species,division,`#individuals counted`,`# / L`,D1:D10)
+d2017 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2017.xlsx', sheet='raw') %>% rename(`biomass factor` = `biomass factor (µg/ind)`) %>% select(ID_lakepulse,genus,species,division,`#individuals counted`,`# / L`,`biomass factor`,D1:D10)
+d2018 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2018.xlsx', sheet='raw') %>% select(ID_lakepulse,genus,species,division,`#individuals counted`,`# / L`,`biomass factor`,D1:D10)
+d2019 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/zooplankton/all raw data 2019.xlsx', sheet='raw') %>% select(ID_lakepulse,genus,species,division,`#individuals counted`,`# / L`,`biomass factor`,D1:D10)
 
-zoo <- bind_rows(d2017,d2018,d2019) %>% rename(Lake_ID = ID_lakepulse, abundance = `#individuals counted`, density = `# / L`)
+zoo <- bind_rows(d2017,d2018,d2019) %>% rename(Lake_ID = ID_lakepulse, abundance = `#individuals counted`, density = `# / L`, mean.mass = `biomass factor`)
 zoo <- filter(zoo, division %in% c('Cladocera','Copepoda'))
 rm(d2017,d2018,d2019)
 
@@ -81,6 +81,7 @@ rm(sizes)
 ## community weighted mean body size
 
 zoo$tot.size <- zoo$density*zoo$mean.size
+zoo$tot.size <- zoo$density*zoo$mean.mass
 cmw <- zoo %>% group_by(Lake_ID) %>% summarize(total.zoo.length = sum(tot.size), total.density = sum(density))
 cmw$cwms <- cmw$total.zoo.length/cmw$total.density
 cmw <- left_join(cmw,basic.data)
