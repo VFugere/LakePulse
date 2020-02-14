@@ -139,6 +139,11 @@ bacterio <- bacterio[,-(to.rm)]
 
 bacterioT <- read.table('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/bacterioplankton/taxa_ASV.txt', header=T, stringsAsFactors = F)
 
+# adding fish
+
+fish <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/clean_community_matrix.xlsx')
+colnames(fish)[1] <- 'Lake_ID'
+
 # saving
 
 rm(bad.zoo.samples,i,to.rm,comma2dot,return1stval)
