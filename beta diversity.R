@@ -18,12 +18,22 @@ cols <- brewer.pal(7, 'Dark2')[1:3]
 cols2 <- brewer.pal(8, 'Dark2')[c(4,5,6,8)] 
 
 #data
-load('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/2017data.RData')
-
+load('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/2017_community_data.RData')
+load('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/basic_data.RData')
 basic.data <- filter(basic.data, year == 2017)
+
+#land use data
+lulc <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2017_LULC_QC.csv', sep = ';', stringsAsFactors = F)
+lulc <- select(lulc, -comment,-flag)
+basic.data <- left_join(basic.data,lulc, by = c('Lake_ID' = 'lakepulse_id'))
+rm(lulc)
 
 plot(log1p(HI)~log(area),basic.data)
 plot(HI~area,basic.data)
+hist(basic.data$HI,breaks=100)
+plot(fraction_agriculture~area,basic.data)
+basic.data$ag <- with(basic.data, fraction_agriculture+fraction_forestry)
+plot(fraction_natlandscapes~HI,basic.data)
 hist(basic.data$HI,breaks=100)
 
 basic.data$hi_class2 <- 'low'
