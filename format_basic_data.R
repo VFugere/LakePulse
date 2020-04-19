@@ -74,5 +74,14 @@ plot(latitude~longitude, basic.data, pch=16, col=sample(color, 17)[overlay$feow]
 
 basic.data <- bind_cols(basic.data,overlay)
 
-save(basic.data, file='/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/basic_data.RData')
+### adding cont divide (spatial join done by Max)
+
+cont <- read_xls('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/other sources/ContinentalDivide.xls') %>% select(idLakePulse, ContinentalDivide)
+basic.data <- left_join(basic.data, cont, by=c('Lake_ID' = 'idLakePulse'))
+basic.data <- rename(basic.data, cont.watershed = ContinentalDivide)
+rm(cont)
+
+### saving
+
+save(basic.data, file='~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/basic_data.RData')
 
