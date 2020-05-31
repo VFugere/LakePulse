@@ -13,6 +13,7 @@ library(vegan)
 comma2dot <- function(x){as.numeric(str_replace(x,',','.'))}
 return1stval <- function(x){x[1]}
 remove_empty_cols <- function(x) {return(!(all(is.na(x)) | all(x == "")))}
+'%!in%' <- function(x,y)!('%in%'(x,y))
 
 # The script below formats Qc & On fish matrices. This outputs the file 'clean_community_matrix' that I sent to Annick, and 
 # which she incorporated in her excel book with all provincial sheets
@@ -95,7 +96,7 @@ NS2 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_outpu
   select(-data_source) %>% mutate_at(vars(-id_lakepulse), as.numeric) %>% gather(fish_species_ID,presence, FS327:FS252) %>% arrange(id_lakepulse)
 
 QC1 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/Annick_workbook.xlsx', sheet='QC-PE') %>%
-  select(-data_source) %>% gather(fish_species_ID,presence, FS014:FS346) %>% arrange(id_lakepulse)
+  select(-data_source) %>% gather(fish_species_ID,presence, FS014:FS363) %>% arrange(id_lakepulse)
 
 ON1 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/Annick_workbook.xlsx', sheet='ON-MNRF') %>%
   select(-data_source) %>% mutate_at(vars(-id_lakepulse), as.numeric) %>% gather(fish_species_ID,presence, FS010:FS342) %>% arrange(id_lakepulse)
@@ -106,37 +107,22 @@ ON2 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_outpu
 PEI <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/Annick_workbook.xlsx', sheet='PEI') %>%
   select(-data_source) %>% mutate_at(vars(-id_lakepulse), as.numeric) %>% gather(fish_species_ID,presence, FS121:FS198) %>% arrange(id_lakepulse)
 
-SK <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/Annick_workbook.xlsx', sheet='SK') %>%
+SK1 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/Annick_workbook.xlsx', sheet='SK') %>%
   select(-data_source) %>% mutate_at(vars(-id_lakepulse), as.numeric) %>% gather(fish_species_ID,presence, FS264:FS327) %>% arrange(id_lakepulse)
 
-dat <- bind_rows(AL, BC1, BC2, NB, NS1, NS2, QC1, ON1, ON2, PEI, SK)
+SK2 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/Annick_workbook.xlsx', sheet='HABISask_Fish') %>%
+  select(-data_source) %>% mutate_at(vars(-id_lakepulse), as.numeric) %>% gather(fish_species_ID,presence, FS146:FS264) %>% arrange(id_lakepulse)
+
+SK3 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/Annick_workbook.xlsx', sheet='HABISask_Stock') %>%
+  select(-data_source) %>% mutate_at(vars(-id_lakepulse), as.numeric) %>% gather(fish_species_ID,presence, FS024:FS264) %>% arrange(id_lakepulse)
+
+dat <- bind_rows(AL, BC1, BC2, NB, NS1, NS2, QC1, ON1, ON2, PEI, SK1, SK2, SK3)
 
 dat <- dat %>% group_by(id_lakepulse,fish_species_ID) %>% summarize(pres = max(presence)) %>% ungroup
-sum(dat$fish_species_ID %in% species_codes$fish_species_ID)/nrow(dat) #all codes in there. phew!
+sum(dat$fish_species_ID %!in% species_codes$fish_species_ID) #all codes in there. phew!
 
 LP.fish.long <- dat
 LP.fish.wide <- dat %>% spread(fish_species_ID,pres)
 LP.fish.wide <- LP.fish.wide %>% replace(is.na(.), 0)
 
-#pour Cindy: TL
-
-dat$species <- species_codes$clean.species.name[match(dat$fish_species_ID,species_codes$fish_species_ID)]
-#only keeping stuff id'd to species
-dat <- drop_na(dat)
-#merging species codes that are the same species by grouping by name instead of FS code
-dat <- dat %>% group_by(id_lakepulse,species) %>% summarize(pres = max(pres)) %>% ungroup
-#to wide
-dat.w <- dat %>% spread(species,pres)
-dat.w <- dat.w %>% replace(is.na(.), 0)
-#adding trophic level
-for(co in 2:ncol(dat.w)){
-  sp <- colnames(dat.w)[co]
-  sp <- str_replace(sp, '_', ' ')
-  tl <- estimate.df %>% filter(Species == sp) %>% pull(Troph)
-  dat.w[,co] <- dat.w[,co]*tl
-}
-
-dat.w$max.trophic.level <- apply(dat.w[,2:ncol(dat.w)], 1, max)
-
-cindy <- select(dat.w, id_lakepulse, max.trophic.level) %>% filter(max.trophic.level > 0)
-writexl::write_xlsx(cindy, '~/Desktop/Cindy.xlsx')
+writexl::write_xlsx(LP.fish.wide, '~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/LP_fish_communitymatrix.xlsx')
