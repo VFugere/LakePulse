@@ -116,7 +116,10 @@ SK2 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_outpu
 SK3 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/Annick_workbook.xlsx', sheet='HABISask_Stock') %>%
   select(-data_source) %>% mutate_at(vars(-id_lakepulse), as.numeric) %>% gather(fish_species_ID,presence, FS024:FS264) %>% arrange(id_lakepulse)
 
-dat <- bind_rows(AL, BC1, BC2, NB, NS1, NS2, QC1, ON1, ON2, PEI, SK1, SK2, SK3)
+YK <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/Annick_workbook.xlsx', sheet='YK') %>%
+  select(-data_source) %>% mutate_at(vars(-id_lakepulse), as.numeric) %>% gather(fish_species_ID,presence, FS351:FS293) %>% arrange(id_lakepulse)
+
+dat <- bind_rows(AL, BC1, BC2, NB, NS1, NS2, QC1, ON1, ON2, PEI, SK1, SK2, SK3, YK)
 
 dat <- dat %>% group_by(id_lakepulse,fish_species_ID) %>% summarize(pres = max(presence)) %>% ungroup
 sum(dat$fish_species_ID %!in% species_codes$fish_species_ID) #all codes in there. phew!
