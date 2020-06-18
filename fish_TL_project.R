@@ -232,10 +232,6 @@ rm(sizes)
 #zoo <- select(zoo, -abundance, -(D1:D10))
 zoo$taxon.biomass <- zoo$density*zoo$mean.mass
 
-# #size spectrum
-# test <- filter(zoo, Lake_ID == '04-572')
-# pivot_longer(test, D1:D10, names_to = 'lenght')
-
 ## community weighted mean body size
 
 zoo$tot.size <- zoo$density*zoo$mean.size
@@ -252,11 +248,6 @@ cwm.cop$cwms <- cwm.cop$total.zoo.length/cwm.cop$total.density
 cwm.cop <-cwm.cop %>% select(Lake_ID,cwms) %>% rename(cwms.cop = cwms)
 cwm <- left_join(cwm,cwm.clad) %>% left_join(cwm.cop)
 
-## community size spectrum
-
-# test <- filter(zoo, Lake_ID == '04-572')
-# plot(log(density)~log(mean.size),test)
-
 ## chla to TN
 
 chlatn <- left_join(chla, TN) %>% mutate(phyto.rue = chla/TN) %>% dplyr::select(Lake_ID, phyto.rue)
@@ -266,17 +257,15 @@ zoobiomass <- left_join(zoobiomass,cwm) %>% left_join(chaoborus) %>% left_join(z
 zoo <- zoobiomass %>% arrange(Lake_ID)
 rm(zoobiomass,cwm,cwm.clad,cwm.cop,chaoborus,alllakes,chlatn,zoochla)
 
-# does body size project look promising?
-
-# test <- left_join(select(env, Lake_ID, latitude, altitude, mean_temp), select(zoo, Lake_ID, cwms:cwms.cop)) %>% left_join(land.use)
+# # does body size project look promising?
+# 
+# test <- left_join(select(env, Lake_ID, latitude, altitude, mean_temp, rbr_temp), select(zoo, Lake_ID, cwms:cwms.cop)) %>% left_join(land.use)
 # corrgram::corrgram(test)
 # library(mgcv)
 # library(itsadug)
 # m <- gam(cwms ~ ti(latitude) + ti(altitude) + ti(latitude, altitude), data=subset(test, !is.na(cwms)))
 # summary(m)
 # plot(m)
-
-# nope, at least at community level.
 
 #### machine learning ####
 
@@ -289,7 +278,7 @@ library(skimr)
 TL <- fish.wide %>% select(id_lakepulse, max.trophic.level) %>% rename(Lake_ID = id_lakepulse, fishTL = max.trophic.level) %>% arrange(Lake_ID)
 TL <- filter(TL, Lake_ID %in% basic.data$Lake_ID)
 
-skim(filter(land.use, Lake_ID %in% TL$Lake_ID))
+skim(filter(env, Lake_ID %in% TL$Lake_ID))
 subenv <- env %>% select(-feow, -cont.watershed, -(DO_sat:pH), -(SPC:hypolimnion_depth))
 
 skim(filter(land.use, Lake_ID %in% TL$Lake_ID))
@@ -429,7 +418,7 @@ mod <- gam(fishTL ~ te(latitude,longitude,bs='gp') + ti(log.area, k=8) + ti(alph
 summary(mod)
 fvisgam(mod, view=c('log.area','alpha'),dec=1,color=cols,hide.label=T,rm.ranef = T,xlab='log10 lake area',ylab='zooplankton diversity',main = 'Max trophic level')
 
-#fvisgam(mod, view=c('log.area','alpha'),color=cols,hide.label=T,rm.ranef = T,plot.type='persp',theta=45,main=NULL,zlab = 'max trophic level',xlab='lake area',ylab='zooplankton diversity')
+fvisgam(mod, view=c('log.area','alpha'),color=cols,hide.label=T,rm.ranef = T,plot.type='persp',theta=45,main=NULL,zlab = 'max trophic level',xlab='lake area',ylab='zooplankton diversity')
 
 tree <- ctree(fishTL ~ log.area + alpha, dat)
 plot(tree)
@@ -441,6 +430,7 @@ library("sf")
 library("rnaturalearth")
 library("rnaturalearthdata")
 library("ggspatial")
+library(viridis)
 
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
