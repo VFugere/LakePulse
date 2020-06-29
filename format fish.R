@@ -89,6 +89,9 @@ BC2 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_outpu
 NB <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/Annick_workbook.xlsx', sheet='NB') %>%
   select(-data_source, -Smelt) %>% gather(fish_species_ID,presence, FS009:FS264) %>% arrange(id_lakepulse)
 
+NL <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/Annick_workbook.xlsx', sheet='NL') %>%
+  select(-data_source) %>% gather(fish_species_ID,presence, FS327:FS121) %>% arrange(id_lakepulse)
+
 NS1 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/Annick_workbook.xlsx', sheet='NS-FishCap') %>%
   select(-data_source) %>% mutate_at(vars(-id_lakepulse), as.numeric) %>% gather(fish_species_ID,presence, FS009:FS264) %>% arrange(id_lakepulse)
 
@@ -119,7 +122,7 @@ SK3 <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_outpu
 YK <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/fish_output/Annick_workbook.xlsx', sheet='YK') %>%
   select(-data_source) %>% mutate_at(vars(-id_lakepulse), as.numeric) %>% gather(fish_species_ID,presence, FS351:FS293) %>% arrange(id_lakepulse)
 
-dat <- bind_rows(AL, BC1, BC2, NB, NS1, NS2, QC1, ON1, ON2, PEI, SK1, SK2, SK3, YK)
+dat <- bind_rows(AL, BC1, BC2, NB, NL, NS1, NS2, QC1, ON1, ON2, PEI, SK1, SK2, SK3, YK)
 
 dat <- dat %>% group_by(id_lakepulse,fish_species_ID) %>% summarize(pres = max(presence)) %>% ungroup
 sum(dat$fish_species_ID %!in% species_codes$fish_species_ID) #all codes in there. phew!
