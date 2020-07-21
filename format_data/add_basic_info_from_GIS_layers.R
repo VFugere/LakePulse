@@ -1,6 +1,7 @@
 ### LOAD LAKE PULSE BASIC INFO
 ### ADD HYDROLAKES ATTRIBUTES
 ### ADD FRESHWATER ECOREGION
+### ADD CONTINENTAL DIVIDE (FROM CINDY)
 
 # code by Vincent Fugère (2019)
 
@@ -83,5 +84,7 @@ rm(cont)
 
 ### saving
 
-save(basic.data, file='~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/basic_data.RData')
+basic.data <- select(basic.data, Lake_ID, Hylak_id:cont.watershed)
+
+writexl::write_xlsx(basic.data, path='~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/other sources/LP_GISaddons.xlsx')
 

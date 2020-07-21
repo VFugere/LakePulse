@@ -25,89 +25,10 @@ map <- getMap(resolution='low')
 
 ## lake pulse abiotic data
 
-load('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/basic_data.RData')
-basic.data <- basic.data %>% arrange(Lake_ID) %>% select(Lake_ID,latitude,longitude,area,depth_m,ecozone,Shore_dev,Res_time,feow,cont.watershed,province)
-altitude <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LP_altitude.xlsx') %>% rename(Lake_ID = lakepulse_id) %>% arrange(Lake_ID)
-basic.data <- left_join(basic.data, altitude)
-rm(altitude)
-basic.data <- basic.data %>% mutate_at(vars(ecozone,cont.watershed), as.factor)
+load('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/allenvdata.RData')
 
-lulc.watershed <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LULC_QC20200323.xlsx') %>% arrange(idLakePulse)
-#NOTE THAT WATERSHED AREA AND HII ARE NOT EXACTLY EQUAL IN BASIC AND LULC DATASETS. LULC data more up-to-date so I use this instead.
-colnames(lulc.watershed )[c(1,2,3)] <- c('Lake_ID','watershed_area_km2','HII')
-lulc.watershed  <- select(lulc.watershed , Lake_ID:HII,fraction_agriculture:fraction_urban)
-
-#land use proportions within 1.5 km of the lakeshore
-lulc.buffer1 <- read_xls('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LU2017ringsBuffer_finalQC20200323.xls')
-lulc.buffer2 <- read_xls('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LU2018ringsBuffer_finalQC20200323.xls')
-lulc.buffer3 <- read_xls('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LU2019ringsBuffer_finalQC20200323.xls')
-lulc.buffer <- bind_rows(lulc.buffer1,lulc.buffer2,lulc.buffer3)
-rm(lulc.buffer1,lulc.buffer2,lulc.buffer3)
-lulc.buffer <- select(lulc.buffer, -...22, -Flags, -Comments)
-colnames(lulc.buffer)[3] <- 'watershed_area'
-lulc.buffer <- lulc.buffer %>% mutate_at(vars(watershed_area:fraction_water),as.numeric)
-lulc.buffer <- lulc.buffer %>% filter(Ring %!in% c('Ring 1500-3100 m','Ring 3100-6300 m','Ring 6300 m-end')) %>%
-  select(idLakePulse, area_km2_NA:total_km2_area) %>% group_by(idLakePulse) %>% summarize_if(is.numeric, sum.nona)
-lulc.buffer$prop.ag.buffer <- lulc.buffer$area_km2_agriculture/lulc.buffer$total_km2_area
-lulc.buffer$prop.forestry.buffer <- lulc.buffer$area_km2_forestry/lulc.buffer$total_km2_area
-lulc.buffer$prop.mines.buffer <- lulc.buffer$area_km2_mines/lulc.buffer$total_km2_area
-lulc.buffer$prop.natural.buffer <- lulc.buffer$area_km2_naturalLandscapes/lulc.buffer$total_km2_area
-lulc.buffer$prop.pasture.buffer <- lulc.buffer$area_km2_pasture/lulc.buffer$total_km2_area
-lulc.buffer$prop.urban.buffer <- lulc.buffer$area_km2_urban/lulc.buffer$total_km2_area
-lulc.buffer <- lulc.buffer %>% rename(Lake_ID = idLakePulse) %>% select(Lake_ID, prop.ag.buffer:prop.urban.buffer)
-
-# kestrel <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LPkestrel.xlsx') %>% arrange(Lake_ID)
-# kestrel <- kestrel %>% mutate_at(vars(temperature,rel_humid,atm_press,wind_max,wind_avg), as.numeric) %>% group_by(Lake_ID) %>%
-#   summarize(air.temp = mean.nona(temperature), rel_humid = mean.nona(rel_humid), atm_press = mean.nona(atm_press), 
-#             wind.max = mean.nona(wind_max), wind.avg = mean.nona(wind_avg)) %>% ungroup
-# #kestrel will not be very useful
-# kestrel <- replace(kestrel, is.na(kestrel), NA)
-
-# #TOP-BOTTOM RBR DATA
-# rbr <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LP_RBR_QC.csv', stringsAsFactors = F) %>% 
-#   filter(depth == 'Tube length')
-# 
-# rbr <- rbr %>% select(lakepulse_id, conductivity_mean, temp_mean, do_mean, do_concentration_mean, chla_mean, ph_mean, salinity_mean, specific_conductance_mean)
-# colnames(rbr)[1] <- 'Lake_ID'
-# rbr <- rbr %>% mutate_at(vars(conductivity_mean:specific_conductance_mean), as.numeric)
-# rbr2 <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LP_RBR_QC.csv', stringsAsFactors = F) %>% 
-#   filter(depth == 'Bottom meter') %>% select(lakepulse_id, do_concentration_mean)
-# colnames(rbr2)[c(1,2)] <- c('Lake_ID','bottom_do')
-# rbr2$bottom_do <- as.numeric(rbr2$bottom_do)
-# rbr <- left_join(rbr,rbr2)
-# rm(rbr2)
-
-#RBR data: average of entire depth profile
-rbr <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LP_RBR_whole_water_column.xlsx')
-rbr <- select(rbr, -depth_averaged_m, -pres24, -Flags, -Comments, -pressure_dbar, -sound.velocity_m.per.s)
-colnames(rbr)[2:9] <- c('conductivity','rbr_temp','DO_sat','DO_mg','rbr_chla','pH','salinity','SPC')
-
-strati <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LP_stratification.xlsx') %>% rename(Lake_ID = lakepulse_id) %>% arrange(Lake_ID)
-colnames(strati)[2:5] <- c('epilimnion_depth','thermocline_depth','hypolimnion_depth','stratified')
-strati <- strati %>% mutate_at(vars(epilimnion_depth:hypolimnion_depth), as.numeric)
-strati <- replace(strati, is.na(strati), NA)
-strati$stratified[strati$stratified == 'NA'] <- NA
-strati$stratified <- as.factor(strati$stratified)
-
-chla <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LP_chla_QC.csv', stringsAsFactors = F)
-colnames(chla)[c(1,3)] <- c('Lake_ID','chla')
-chla <- chla %>% mutate_at('chla', as.numeric) %>% group_by(Lake_ID) %>% summarize(chla = mean.nona(chla)) %>% ungroup %>% arrange(Lake_ID)
-# test <- left_join(chla, rbr)
-# plot(rbr_chla~chla,test,log='xy') #not that terrible
-
-secchi <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LP_secchi_QC.csv', stringsAsFactors = F)
-colnames(secchi)[c(1,6)] <- c('Lake_ID','secchi_depth')
-secchi <- filter(secchi, site_name == 'Index Site') %>% select(Lake_ID, secchi_depth) %>% arrange(Lake_ID) %>% mutate_at('secchi_depth', as.numeric)
-
-TN <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LP_TN_QC.csv', stringsAsFactors = F)
-colnames(TN)[c(1,3)] <- c('Lake_ID','TN')
-TN <- filter(TN, depth == 'Epilimnion') %>% select(Lake_ID, TN) %>% arrange(Lake_ID) %>% mutate_at('TN', as.numeric)
-
-climate <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/other sources/LP_climate_Cindy.csv', stringsAsFactors = F) %>% 
-  mutate_at(vars(distance:sampling_year), as.numeric) %>% select(Lake_ID,mean_temp:total_precip)
-
+#need to update this and select relevant variables
 env <- left_join(basic.data, chla) %>% left_join(rbr) %>% left_join(secchi) %>% left_join(strati) %>% left_join(TN) %>% left_join(climate)
-
 land.use <- left_join(basic.data, lulc.watershed) %>% left_join(lulc.buffer) %>% select(Lake_ID, HII:prop.urban.buffer)
 
 ## fish
