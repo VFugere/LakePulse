@@ -26,11 +26,13 @@ map <- getMap(resolution='low')
 ## lake pulse abiotic data
 
 load('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/allenvdata.RData')
+basic.data <- LP.env.data
+rm(LP.env.data)
 
 #need to update this and select relevant variables
-env <- left_join(basic.data, chla) %>% left_join(rbr) %>% left_join(secchi) %>% left_join(strati) %>% left_join(TN) %>% left_join(climate)
-land.use <- left_join(basic.data, lulc.watershed) %>% left_join(lulc.buffer) %>% select(Lake_ID, HII:prop.urban.buffer)
-
+env <- select(basic.data, Lake_ID, province, julian.day, latitude, longitude, area_km2:ecozone, altitude, Shore_dev, Res_time, feow: watershed_area_km2,kestrel.air.temp:Chla_spectro)
+land.use <- select(basic.data, Lake_ID, HII:prop.urban.buffer)
+                   
 ## fish
 
 load(file='~/Google Drive/Recherche/Lake Pulse Postdoc/R/FisHab_Git/formatted_open_data/species_codes.RData')
