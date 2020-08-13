@@ -147,4 +147,4 @@ LP.env.data <- left_join(basic.data, altitude) %>%
   left_join(rbr) %>%  left_join(chla)
 
 save(LP.env.data, file='~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/allenvdata.RData')
-
+writexl::write_xlsx(LP.env.data, '~/Google Drive/FisHab_share/formatted data/LakePulse_env.xlsx')

@@ -1,40 +1,70 @@
+#Drivers of multitrophic biodiversity in over 400 canadian lakes
+
 rm(list=ls())
 
 #libraries
 library(tidyverse)
+library(readxl)
 library(vegan)
-library(RColorBrewer)
-library(adespatial)
-library(devtools)
-library(sp)
+# library(RColorBrewer)
+# library(adespatial)
+# library(devtools)
+# library(sp)
 
-#functions
-make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y)))))
-'%!in%' <- function(x,y)!('%in%'(x,y))
-source_url("https://raw.githubusercontent.com/VFugere/LakePulse/master/custom_plots.R")
+# #functions
+# make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y)))))
+# '%!in%' <- function(x,y)!('%in%'(x,y))
+# source_url("https://raw.githubusercontent.com/VFugere/LakePulse/master/custom_plots.R")
+# 
+# #cols
+# cols <- brewer.pal(7, 'Dark2')[1:3] 
+# cols2 <- brewer.pal(8, 'Dark2')[c(4,5,6,8)] 
 
-#cols
-cols <- brewer.pal(7, 'Dark2')[1:3] 
-cols2 <- brewer.pal(8, 'Dark2')[c(4,5,6,8)] 
+#### load and format data ####
 
-#data
-load('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/2017_community_data.RData')
-load('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/basic_data.RData')
-basic.data <- filter(basic.data, year == 2017)
+#env params
+env <- read_xlsx('~/Google Drive/FisHab_share/formatted data/LakePulse_env.xlsx')
 
-#land use data
-lulc <- read.csv2('~/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/environmental/LakePulse2017_LULC_QC.csv', sep = ';', stringsAsFactors = F)
-lulc <- select(lulc, -comment,-flag)
-basic.data <- left_join(basic.data,lulc, by = c('Lake_ID' = 'lakepulse_id'))
-rm(lulc)
+#bacterioplankton
+bac <- read_csv('~/Google Drive/FisHab_share/formatted data/Bacteria 2017 2018 - SxS.csv')
+taxa <- bac$ASV
+bac <- t(bac[,2:447]) %>% as.data.frame
+colnames(bac) <- taxa
+bac <- rownames_to_column(bac, var = 'Lake_ID')
+bac <- filter(bac, str_count(Lake_ID) < 7)
+bac$Lake_ID %in% env$Lake_ID #argh
+lakes <- bac$Lake_ID
+lakes <- str_split(lakes, '-', simplify=T)
+lakes[str_count(lakes[,2]) == 2,2] <- paste0('0',lakes[str_count(lakes[,2]) == 2,2])
+lakes[str_count(lakes[,2]) == 1,2] <- paste0('00',lakes[str_count(lakes[,2]) == 1,2])
+lakes <- paste(lakes[,1],lakes[,2],sep='-')
+lakes %in% env$Lake_ID #good
+bac$Lake_ID <- lakes
+rm(lakes)
+#probably need to delete global singleton (1 read across all lakes)
+bac <- bac[,c(T,colSums(bac[,2:ncol(bac)]) > 1)]
+#are there empty lakes?
+sum(rowSums(bac[,2:ncol(bac)]) == 0)
+#no
 
-plot(log1p(HI)~log(area),basic.data)
-plot(HI~area,basic.data)
-hist(basic.data$HI,breaks=100)
-plot(fraction_agriculture~area,basic.data)
-basic.data$ag <- with(basic.data, fraction_agriculture+fraction_forestry)
-plot(fraction_natlandscapes~HI,basic.data)
-hist(basic.data$HI,breaks=100)
+# Mario M. recommended deleting global singleton but not global doubleton or more. I.e. no need for rarefaction
+sum(colSums(bac[,2:ncol(bac)]) == 0)
+sum(is.na(colSums(bac[,2:ncol(bac)])))
+#no NA, no empty columns. 
+sum(colSums(bac[,2:ncol(bac)]) == 1)
+sum(colSums(bac[,2:ncol(bac)]) == 2)
+#5 global singletons, 557 global doubletons
+
+#removing two sites with very poor sequencing depth (< 1100 reads, while all other sites are > 10K)
+to.rm <- which(rowSums(bac[,2:ncol(bac)]) < 1500)
+bac <- bac[-(to.rm),]
+
+#rarefying to 15K to be consistent with Susanne
+bac[,2:ncol(bac)] <- rrarefy(bac[,2:ncol(bac)], 15000)
+
+#removing global single and doubletons
+to.rm <- as.numeric(which(colSums(bac[,2:ncol(bac)]) < 3))+1
+bac <- bac[,-(to.rm)]
 
 basic.data$hi_class2 <- 'low'
 basic.data$hi_class2[basic.data$HI > 0.05] <- 'moderate'
