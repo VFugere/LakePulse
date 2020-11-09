@@ -17,7 +17,8 @@ cols <- brewer.pal(3, 'Dark2')
 cols2 <- brewer.pal(8, 'Dark2')[c(4,5,6,8)] 
 
 #data
-load('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/basic_data.RData')
+load('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/LP/allenvdata.RData')
+
 # zoo <- zoo.biomass.grouped 
 # basic.data <- filter(basic.data, year == 2017)
 # basic.data$ecozone <- as.factor(basic.data$ecozone)
@@ -106,3 +107,4 @@ text(x=leg.x.rg[50],y=ypos,cex=1,label='land use intensity',pos=3)
 xpoints <- leg.x.rg[c(30,50,70)] - 23
 points(rep(ypos,3)~xpoints, pch=1, col = 1, cex = c(0.6,1,1.4))
 text(x=xpoints[2],y=ypos,cex=1,label='lake size',pos=3)
+
