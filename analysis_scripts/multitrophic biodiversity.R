@@ -46,25 +46,24 @@ bac <- bac[,c(T,colSums(bac[,2:ncol(bac)]) > 1)]
 #are there empty lakes?
 sum(rowSums(bac[,2:ncol(bac)]) == 0)
 #no
-
-# Mario M. recommended deleting global singleton but not global doubleton or more. I.e. no need for rarefaction
-sum(colSums(bac[,2:ncol(bac)]) == 0)
-sum(is.na(colSums(bac[,2:ncol(bac)])))
-#no NA, no empty columns. 
-sum(colSums(bac[,2:ncol(bac)]) == 1)
 sum(colSums(bac[,2:ncol(bac)]) == 2)
-#5 global singletons, 557 global doubletons
+#439 global doubletons
+range(rowSums(bac[,2:ncol(bac)])) #quite a bit of variation in read number
+#rarefying to 14K?
+bac[,2:ncol(bac)] <- rrarefy(bac[,2:ncol(bac)], 14000)
 
-#removing two sites with very poor sequencing depth (< 1100 reads, while all other sites are > 10K)
-to.rm <- which(rowSums(bac[,2:ncol(bac)]) < 1500)
-bac <- bac[-(to.rm),]
+#phytoplankton
+phyto <- read_csv('~/Google Drive/FisHab_share/formatted data/Phyto 2017 - Biomass SxS.csv')
+phyto2 <- read_csv('~/Google Drive/FisHab_share/formatted data/Phyto 2018 - Biomass SxS.csv')
+phyto2$binomial.final %in% phyto$binomial.final #easy!
+phyto <- phyto %>% gather('site','biovolume',-binomial.final)
+phyto2 <- phyto2 %>% gather('site','biovolume',-binomial.final)
+phyto <- bind_rows(phyto,phyto2)
+phyto <- pivot_wider(phyto, id_cols = 'site', names_from = 'binomial.final', values_from = 'biovolume') %>% as.data.frame
+phyto[is.na(phyto)] <- 0
 
-#rarefying to 15K to be consistent with Susanne
-bac[,2:ncol(bac)] <- rrarefy(bac[,2:ncol(bac)], 15000)
 
-#removing global single and doubletons
-to.rm <- as.numeric(which(colSums(bac[,2:ncol(bac)]) < 3))+1
-bac <- bac[,-(to.rm)]
+
 
 basic.data$hi_class2 <- 'low'
 basic.data$hi_class2[basic.data$HI > 0.05] <- 'moderate'
